@@ -1,0 +1,126 @@
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background-color: #222;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+/* 地圖容器永遠在底層 */
+.map-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 0;
+}
+
+/* 漢堡按鈕浮在上層 */
+.menu-button {
+  position: fixed !important;
+  top: 16px;
+  right: 16px; /* 將按鈕移動到右側 */
+  font-size: 28px;
+  width: auto; 
+  background-color: rgba(51, 51, 51, 0.9);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  z-index: 100;
+  transition: background-color 0.3s;
+}
+
+.menu-button:hover {
+  background-color: rgba(85, 85, 85, 0.9);
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  right: 0; /* 改為固定在右側 */
+  height: 100%;
+  width: 300px;
+  background-color: rgba(51, 51, 51, 0.95);
+  transform: translateX(100%); /* 初始隱藏在右側 */
+  transition: transform 0.3s ease;
+  z-index: 90;
+  padding: 20px;
+  box-shadow: -3px 0 6px rgba(0, 0, 0, 0.3); /* 陰影改為左側 */
+}
+
+.side-menu.open {
+  transform: translateX(0); /* 顯示選單 */
+}
+
+.side-menu h2 {
+  border-bottom: 1px solid #555;
+  padding-bottom: 8px;
+}
+
+.side-menu ul {
+  list-style: none;
+  padding: 0;
+}
+
+.side-menu li {
+  margin: 16px 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.side-menu li:hover {
+  color: #ffcc00;
+}
+
+.accordion-section {
+  margin-bottom: 12px;
+  border-bottom: 1px solid #555;
+}
+
+.accordion-title {
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.accordion-title:hover {
+  color: #ffcc00;
+}
+
+.accordion-content {
+  margin-top: 8px;
+  padding-left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.accordion-content button, .accordion-content select, .accordion-content textarea {
+  width: 100%;
+}
+
+.title-box {
+  position: fixed;       /* 固定在視窗 */
+  top: 16px;
+  left: 16px;
+  background-color: white;
+  color: blue;
+  font-weight: bold;
+  font-size: 18px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 110;          /* 確保比選單按鈕還高 */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
