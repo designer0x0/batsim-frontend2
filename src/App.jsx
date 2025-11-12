@@ -2,21 +2,23 @@ import { useState, useRef, useEffect } from "react";
 import "./App.css";
 
 const init_scale = 1.0;
-const init_pos = { x: -4000, y: -7000 };
+const init_pos = { x: -5200, y: -4800 };
 
 function App() {
   const [scale, setScale] = useState(init_scale);
-  const [pos, setPos] = useState(init_pos);
-  const [dragging, setDragging] = useState(false);
-  const [start, setStart] = useState({ x: 0, y: 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const imgRef = useRef(null);
+	const [pos, setPos] = useState(init_pos);
+	const [dragging, setDragging] = useState(false);
+	const [start, setStart] = useState({ x: 0, y: 0 });
+	const [menuOpen, setMenuOpen] = useState(false);
+	const imgRef = useRef(null);
 
-  const [expandedSection, setExpandedSection] = useState(null);
+	const [expandedSection, setExpandedSection] = useState(null);
+	const [mouseLatLon, setMouseLatLon] = useState({ lat: null, lon: null });
 
-  const toggleSection = (sectionName) => {
-    setExpandedSection(expandedSection === sectionName ? null : sectionName);
-  };
+
+	const toggleSection = (sectionName) => {
+		setExpandedSection(expandedSection === sectionName ? null : sectionName);
+	};
 
   useEffect(() => {
     const img = imgRef.current;
@@ -45,10 +47,39 @@ function App() {
     setDragging(true);
     setStart({ x: e.clientX - pos.x, y: e.clientY - pos.y });
   };
+
   const handleMouseMove = (e) => {
-    if (!dragging) return;
-    setPos({ x: e.clientX - start.x, y: e.clientY - start.y });
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    // 取得滑鼠在 map 容器內的座標（像素）
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // 將螢幕座標轉成地圖座標
+    const mapX = (mouseX - pos.x) / scale;
+    const mapY = (mouseY - pos.y) / scale;
+
+    // === 經緯度換算 ===
+    // 地圖橫向 (X) 對應經度，縱向 (Y) 對應緯度。
+    const lon_min = 121.6140;
+    const lon_max = 121.9649;
+    const lat_min = 25.1228;
+    const lat_max = 25.2588;
+
+    const img = imgRef.current;
+    if (img && img.naturalWidth && img.naturalHeight) {
+      const lon = lon_min + (mapX / img.naturalWidth) * (lon_max - lon_min);
+      const lat = lat_max - (mapY / img.naturalHeight) * (lat_max - lat_min);
+      setMouseLatLon({ lat, lon });
+    }
+
+    // === 拖曳邏輯 ===
+    if (dragging) {
+      setPos({ x: e.clientX - start.x, y: e.clientY - start.y });
+    }
   };
+
+
   const handleMouseUp = () => setDragging(false);
 
   const resetView = () => {
@@ -145,6 +176,18 @@ function App() {
           <li onClick={resetView}>回到預設視角</li>
         </ul>
 
+      </div>
+
+      {/* 左下角經緯度顯示 */}
+      <div className="mouse-coord-box">
+        {mouseLatLon.lat && mouseLatLon.lon ? (
+          <>
+            <div>緯度: {mouseLatLon.lat.toFixed(5)}</div>
+            <div>經度: {mouseLatLon.lon.toFixed(5)}</div>
+          </>
+        ) : (
+          <div>滑鼠未在地圖上</div>
+        )}
       </div>
     </div>
   );
