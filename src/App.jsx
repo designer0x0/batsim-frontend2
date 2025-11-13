@@ -5,6 +5,12 @@ import { api } from "./services/api";
 const init_scale = 1.0;
 const init_pos = { x: -5200, y: -4800 };
 
+// Map boundaries (Unity coordinates)
+const MAP_MIN_X = -6200;
+const MAP_MAX_X = 8800;
+const MAP_MIN_Z = -1500;
+const MAP_MAX_Z = 13500;
+
 function App() {
   const [scale, setScale] = useState(init_scale);
 	const [pos, setPos] = useState(init_pos);
@@ -18,6 +24,7 @@ function App() {
 
 	// API integration states
 	const [ships, setShips] = useState([]);
+	const [persons, setPersons] = useState([]);
 	const [connected, setConnected] = useState(false);
 	const [isRecording, setIsRecording] = useState(false);
 	const [waypoints, setWaypoints] = useState([]);
@@ -29,11 +36,34 @@ function App() {
 		setExpandedSection(expandedSection === sectionName ? null : sectionName);
 	};
 
+	// Coordinate conversion: Unity map coordinates to screen pixels
+	const mapToScreen = (mapX, mapZ) => {
+		const img = imgRef.current;
+		if (!img || !img.naturalWidth || !img.naturalHeight) {
+			return { x: 0, y: 0 };
+		}
+
+		// Calculate position within map bounds (0 to 1)
+		const normalizedX = (mapX - MAP_MIN_X) / (MAP_MAX_X - MAP_MIN_X);
+		const normalizedZ = (mapZ - MAP_MIN_Z) / (MAP_MAX_Z - MAP_MIN_Z);
+
+		// Convert to image pixel coordinates
+		const imgX = normalizedX * img.naturalWidth;
+		const imgY = (1 - normalizedZ) * img.naturalHeight; // Invert Y axis
+
+		// Apply current transform (scale and position)
+		const screenX = imgX * scale + pos.x;
+		const screenY = imgY * scale + pos.y;
+
+		return { x: screenX, y: screenY };
+	};
+
 	// API functions
 	const fetchState = async () => {
 		try {
 			const data = await api.getStatus();
 			setShips(data.ships || []);
+			setPersons(data.personsInDistress?.persons || []);
 			setConnected(true);
 
 			// Set default selections if not set
@@ -264,6 +294,58 @@ function App() {
             pointerEvents: "none",
           }}
         />
+
+        {/* Ship markers */}
+        {ships.map(ship => {
+          const { x, y } = mapToScreen(ship.position.x, ship.position.z);
+          return (
+            <div key={ship.name}>
+              {/* Detection range circle */}
+              {ship.detectionRange > 0 && (
+                <div
+                  className="detection-range"
+                  style={{
+                    left: `${x}px`,
+                    top: `${y}px`,
+                    width: `${ship.detectionRange * scale * 2}px`,
+                    height: `${ship.detectionRange * scale * 2}px`,
+                  }}
+                />
+              )}
+              {/* Ship marker */}
+              <div
+                className={`map-ship ${ship.isWaiting ? 'ship-waiting' : ''}`}
+                style={{
+                  left: `${x}px`,
+                  top: `${y}px`,
+                }}
+              >
+                <div className="ship-icon"></div>
+                <div className="ship-label">{ship.name}</div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Person markers */}
+        {persons.map(person => {
+          const { x, y } = mapToScreen(person.position.x, person.position.z);
+          return (
+            <div
+              key={person.id}
+              className={`map-person ${person.isSaved ? 'person-saved' : 'person-danger'}`}
+              style={{
+                left: `${x}px`,
+                top: `${y}px`,
+              }}
+            >
+              <div className="person-icon"></div>
+              <div className="person-label">
+                {person.isSaved ? '已獲救' : '待救'} ID {person.id}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* 選單浮在地圖上 */}
