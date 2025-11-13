@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
+import { api } from "./services/api";
 
 const init_scale = 1.0;
 const init_pos = { x: -5200, y: -4800 };
@@ -15,11 +16,102 @@ function App() {
 	const [expandedSection, setExpandedSection] = useState(null);
 	const [mouseLatLon, setMouseLatLon] = useState({ lat: null, lon: null });
 
+	// API integration states
+	const [ships, setShips] = useState([]);
+	const [connected, setConnected] = useState(false);
+	const [isRecording, setIsRecording] = useState(false);
+	const [waypoints, setWaypoints] = useState([]);
+	const [selectedShipCommand, setSelectedShipCommand] = useState('');
+	const [selectedShipWaypoint, setSelectedShipWaypoint] = useState('');
+
 
 	const toggleSection = (sectionName) => {
 		setExpandedSection(expandedSection === sectionName ? null : sectionName);
 	};
 
+	// API functions
+	const fetchState = async () => {
+		try {
+			const data = await api.getStatus();
+			setShips(data.ships || []);
+			setConnected(true);
+
+			// Set default selections if not set
+			if (data.ships && data.ships.length > 0) {
+				if (!selectedShipCommand) setSelectedShipCommand(data.ships[0].name);
+				if (!selectedShipWaypoint) setSelectedShipWaypoint(data.ships[0].name);
+			}
+		} catch (error) {
+			setConnected(false);
+		}
+	};
+
+	const resetSimulation = async () => {
+		try {
+			await api.reset();
+			console.log('Simulation reset successfully');
+			setWaypoints([]);
+			await fetchState();
+		} catch (error) {
+			alert(`重置模擬失敗: ${error.message}`);
+		}
+	};
+
+	const sendShipCommand = async (action, shipName) => {
+		if (!shipName) {
+			alert('請先選擇船隻');
+			return;
+		}
+
+		try {
+			const shipsToSend = [shipName];
+			await api.sendCommand(action, shipsToSend);
+			console.log(`Command ${action} sent to ${shipName}`);
+			await fetchState();
+		} catch (error) {
+			alert(`發送指令失敗: ${error.message}`);
+		}
+	};
+
+	const toggleWaypointRecording = () => {
+		const newRecordingState = !isRecording;
+		setIsRecording(newRecordingState);
+
+		if (newRecordingState) {
+			// Start recording - ask to clear existing waypoints
+			if (waypoints.length > 0) {
+				if (!window.confirm('是否清空現有航點並開始錄製？')) {
+					setIsRecording(false);
+					return;
+				}
+			}
+			setWaypoints([]);
+		}
+	};
+
+	const addWaypoint = async () => {
+		const shipName = selectedShipWaypoint;
+
+		if (!shipName) {
+			alert('請先選擇船隻');
+			return;
+		}
+
+		if (waypoints.length === 0) {
+			alert('航點列表不能為空');
+			return;
+		}
+
+		try {
+			await api.sendWaypoints(shipName, waypoints);
+			console.log(`Waypoints sent to ${shipName}`);
+			await fetchState();
+		} catch (error) {
+			alert(`發送航點失敗: ${error.message}`);
+		}
+	};
+
+	// Image load effect
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
@@ -28,6 +120,15 @@ function App() {
       setPos(init_pos);
     };
   }, []);
+
+	// Polling effect
+	useEffect(() => {
+		fetchState(); // Initial fetch
+
+		const interval = setInterval(fetchState, 100); // Poll every 100ms
+
+		return () => clearInterval(interval);
+	}, []);
 
   const handleWheel = (e) => {
     e.preventDefault();
@@ -82,6 +183,49 @@ function App() {
 
   const handleMouseUp = () => setDragging(false);
 
+	const handleMapClick = (e) => {
+		if (!isRecording) return;
+
+		const rect = e.currentTarget.getBoundingClientRect();
+		const mouseX = e.clientX - rect.left;
+		const mouseY = e.clientY - rect.top;
+
+		// Convert screen coordinates to map coordinates
+		const mapX = (mouseX - pos.x) / scale;
+		const mapY = (mouseY - pos.y) / scale;
+
+		// Convert to lat/lon
+		const lon_min = 121.6140;
+		const lon_max = 121.9649;
+		const lat_min = 25.1228;
+		const lat_max = 25.2588;
+
+		const img = imgRef.current;
+		if (img && img.naturalWidth && img.naturalHeight) {
+			const lon = lon_min + (mapX / img.naturalWidth) * (lon_max - lon_min);
+			const lat = lat_max - (mapY / img.naturalHeight) * (lat_max - lat_min);
+
+			// Convert lat/lon to Unity coordinates (assuming conversion needed)
+			// For now, using pixel coordinates as Unity coordinates
+			// You may need to adjust this based on your Unity coordinate system
+			const MAP_MIN_X = -6200;
+			const MAP_MAX_X = 8800;
+			const MAP_MIN_Z = -1500;
+			const MAP_MAX_Z = 13500;
+
+			const unityX = MAP_MIN_X + (mapX / img.naturalWidth) * (MAP_MAX_X - MAP_MIN_X);
+			const unityZ = MAP_MIN_Z + (mapY / img.naturalHeight) * (MAP_MAX_Z - MAP_MIN_Z);
+
+			const newWaypoint = [
+				parseFloat(unityX.toFixed(1)),
+				0.0,
+				parseFloat(unityZ.toFixed(1))
+			];
+
+			setWaypoints([...waypoints, newWaypoint]);
+		}
+	};
+
   const resetView = () => {
     const img = imgRef.current;
     if (!img) return;
@@ -105,6 +249,8 @@ function App() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onClick={handleMapClick}
+        style={{ cursor: isRecording ? 'crosshair' : 'default' }}
       >
         <img
           ref={imgRef}
@@ -135,8 +281,11 @@ function App() {
           </div>
           {expandedSection === "system" && (
             <div className="accordion-content">
-              <button onClick={window.resetSimulation}>重置模擬</button>
-              <button onClick={window.fetchState}>更新狀態</button>
+              <button onClick={resetSimulation}>重置模擬</button>
+              <button onClick={fetchState}>更新狀態</button>
+              <div style={{ marginTop: '10px', fontSize: '12px' }}>
+                連線狀態: {connected ? '已連線' : '未連線'}
+              </div>
             </div>
           )}
         </div>
@@ -148,9 +297,16 @@ function App() {
           </div>
           {expandedSection === "ship" && (
             <div className="accordion-content">
-              <select id="shipSelectCommand"></select>
-              <button onClick={() => window.sendShipCommand('start', document.getElementById('shipSelectCommand').value)}>啟動</button>
-              <button onClick={() => window.sendShipCommand('stop', document.getElementById('shipSelectCommand').value)}>停止</button>
+              <select
+                value={selectedShipCommand}
+                onChange={(e) => setSelectedShipCommand(e.target.value)}
+              >
+                {ships.map(ship => (
+                  <option key={ship.name} value={ship.name}>{ship.name}</option>
+                ))}
+              </select>
+              <button onClick={() => sendShipCommand('start', selectedShipCommand)}>啟動</button>
+              <button onClick={() => sendShipCommand('stop', selectedShipCommand)}>停止</button>
             </div>
           )}
         </div>
@@ -162,12 +318,30 @@ function App() {
           </div>
           {expandedSection === "waypoint" && (
             <div className="accordion-content">
-              <button id="recordWaypointBtn" onClick={window.toggleWaypointRecording}>
-                錄製航點
+              <button
+                onClick={toggleWaypointRecording}
+                style={{
+                  backgroundColor: isRecording ? '#f44336' : '',
+                  color: isRecording ? 'white' : ''
+                }}
+              >
+                {isRecording ? '停止錄製' : '錄製航點'}
               </button>
-              <select id="shipSelectWaypoint"></select>
-              <button onClick={window.addWaypoint}>送出航點</button>
-              <textarea id="waypointsInput" readOnly rows="6"></textarea>
+              <select
+                value={selectedShipWaypoint}
+                onChange={(e) => setSelectedShipWaypoint(e.target.value)}
+              >
+                {ships.map(ship => (
+                  <option key={ship.name} value={ship.name}>{ship.name}</option>
+                ))}
+              </select>
+              <button onClick={addWaypoint}>送出航點</button>
+              <textarea
+                readOnly
+                rows="6"
+                value={JSON.stringify(waypoints, null, 2)}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: '11px' }}
+              />
             </div>
           )}
         </div>
