@@ -65,12 +65,6 @@ function App() {
 			setShips(data.ships || []);
 			setPersons(data.personsInDistress?.persons || []);
 			setConnected(true);
-
-			// Set default selections if not set
-			if (data.ships && data.ships.length > 0) {
-				if (!selectedShipCommand) setSelectedShipCommand(data.ships[0].name);
-				if (!selectedShipWaypoint) setSelectedShipWaypoint(data.ships[0].name);
-			}
 		} catch (error) {
 			setConnected(false);
 		}
@@ -160,6 +154,21 @@ function App() {
 		return () => clearInterval(interval);
 	}, []);
 
+	// Set default ship selections when ships data is loaded
+	useEffect(() => {
+		if (ships.length > 0) {
+			// Only set default if current selection is empty or invalid
+			const shipNames = ships.map(s => s.name);
+
+			if (!selectedShipCommand || !shipNames.includes(selectedShipCommand)) {
+				setSelectedShipCommand(ships[0].name);
+			}
+			if (!selectedShipWaypoint || !shipNames.includes(selectedShipWaypoint)) {
+				setSelectedShipWaypoint(ships[0].name);
+			}
+		}
+	}, [ships, selectedShipCommand, selectedShipWaypoint]);
+
   const handleWheel = (e) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -220,31 +229,23 @@ function App() {
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
 
-		// Convert screen coordinates to map coordinates
+		// Convert screen coordinates to image pixel coordinates
 		const mapX = (mouseX - pos.x) / scale;
 		const mapY = (mouseY - pos.y) / scale;
 
-		// Convert to lat/lon
-		const lon_min = 121.6140;
-		const lon_max = 121.9649;
-		const lat_min = 25.1228;
-		const lat_max = 25.2588;
-
 		const img = imgRef.current;
 		if (img && img.naturalWidth && img.naturalHeight) {
-			const lon = lon_min + (mapX / img.naturalWidth) * (lon_max - lon_min);
-			const lat = lat_max - (mapY / img.naturalHeight) * (lat_max - lat_min);
+			// Convert image pixel to normalized coordinates (0 to 1)
+			const normalizedX = mapX / img.naturalWidth;
+			const normalizedY = mapY / img.naturalHeight;
 
-			// Convert lat/lon to Unity coordinates (assuming conversion needed)
-			// For now, using pixel coordinates as Unity coordinates
-			// You may need to adjust this based on your Unity coordinate system
-			const MAP_MIN_X = -6200;
-			const MAP_MAX_X = 8800;
-			const MAP_MIN_Z = -1500;
-			const MAP_MAX_Z = 13500;
+			// Convert to Unity coordinates
+			// X: straightforward mapping
+			const unityX = MAP_MIN_X + normalizedX * (MAP_MAX_X - MAP_MIN_X);
 
-			const unityX = MAP_MIN_X + (mapX / img.naturalWidth) * (MAP_MAX_X - MAP_MIN_X);
-			const unityZ = MAP_MIN_Z + (mapY / img.naturalHeight) * (MAP_MAX_Z - MAP_MIN_Z);
+			// Z: need to invert Y axis (image Y goes down, Unity Z goes up)
+			const normalizedZ = 1 - normalizedY;
+			const unityZ = MAP_MIN_Z + normalizedZ * (MAP_MAX_Z - MAP_MIN_Z);
 
 			const newWaypoint = [
 				parseFloat(unityX.toFixed(1)),
