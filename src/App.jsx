@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import { api } from "./services/api";
+import SystemControlPanel from "./components/SystemControlPanel";
 
 const init_scale = 1.0;
 const init_pos = { x: -5200, y: -4800 };
@@ -33,6 +34,7 @@ function App() {
 
 
 	const toggleSection = (sectionName) => {
+		console.log(`Toggling section: ${sectionName}`); // Log when a section is toggled
 		setExpandedSection(expandedSection === sectionName ? null : sectionName);
 	};
 
@@ -359,18 +361,12 @@ function App() {
 
         {/* 系統控制 */}
         <div className="accordion-section">
-          <div className="accordion-title" onClick={() => toggleSection("system")}>
+          <div className="accordion-title" onClick={() => {
+            // 切換 expandedSection，但不在 side-menu 内展開
+            setExpandedSection(expandedSection === "system" ? null : "system");
+          }}>
             系統控制
           </div>
-          {expandedSection === "system" && (
-            <div className="accordion-content">
-              <button onClick={resetSimulation}>重置模擬</button>
-              <button onClick={fetchState}>更新狀態</button>
-              <div style={{ marginTop: '10px', fontSize: '12px' }}>
-                連線狀態: {connected ? '已連線' : '未連線'}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* 船隻指令 */}
@@ -446,6 +442,17 @@ function App() {
           <div>滑鼠未在地圖上</div>
         )}
       </div>
+
+
+      {/* 系統控制面板 */}      
+      {expandedSection === "system" && (
+        console.log("Rendering SystemControlPanel"), // Log when the panel is rendered
+        <SystemControlPanel
+          onClose={() => setExpandedSection(null)}
+          connected={connected}
+          resetSimulation={resetSimulation}
+        />
+      )}
     </div>
   );
 }

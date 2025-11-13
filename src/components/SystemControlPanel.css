@@ -1,0 +1,90 @@
+/* --- SystemControlPanel.css --- */
+
+/* 外部容器：控制 panel 的位置與進出動畫 */
+.system-panel-outer {
+  position: fixed;
+  top: 0;
+  height: 100%;
+  z-index: 200;
+  right: 360px; 
+  width: 320px;
+  transition: right 0.28s cubic-bezier(.2, .9, .2, 1), opacity 0.2s;
+  opacity: 0;
+  pointer-events: none;
+}
+
+
+/* 顯示時，貼在 side-menu 左邊（假設 side-menu 寬度是 320px） */
+.system-panel-outer.visible {
+  right: 20px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* panel 本體 */
+.system-panel {
+  position: fixed;
+  top: 4%; /* Keep the top position */
+  right: 15%; /* Align to the left of the side menu (side menu width is 300px + padding) */
+  transform: none; /* Remove centering */
+  width: 400px; /* Reduced width */
+  height: auto; /* Adjust height to fit content */
+  max-height: 80%; /* Prevent it from touching the top and bottom edges */
+  padding: 20px; /* Add padding for better spacing */
+  box-sizing: border-box;
+  border-radius: 8px; /* Add rounded corners */
+  overflow-y: auto; /* Enable scrolling if content overflows */
+  background-color: rgba(51, 51, 51, 0.95); /* Match side menu background */
+  color: white; /* Match side menu text color */
+  box-shadow: -3px 0 6px rgba(0, 0, 0, 0.3); /* Match side menu shadow */
+  z-index: 10000;
+}
+
+/* header */
+.system-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.system-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #ffcc00; /* Highlighted title color */
+}
+.close-button {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: white; /* Match text color */
+}
+
+/* content */
+.system-panel-content {
+  margin-top: 12px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+  color: white; /* Match content text color */
+}
+
+/* Corrected hover effect for "重置模擬" */
+.system-panel-content .reset-simulation {
+  cursor: pointer;
+  color: white; /* Default color */
+  font-weight: bold;
+  padding: 10px 0;
+  text-align: left; /* Align text to the left */
+  border-bottom: 1px solid #555;
+  transition: color 0.3s; /* Smooth hover effect */
+}
+
+.system-panel-content .reset-simulation:hover {
+  color: #ffcc00; /* Hover color */
+}
+
+/* Added spacing between "系統控制" and "重置模擬" */
+.system-panel-content .divider {
+  border-bottom: 1px solid white;
+  margin: 10px 0; /* Add spacing */
+}
