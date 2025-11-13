@@ -140,3 +140,84 @@ body, html, #root {
   user-select: none;
 }
 
+/* Ship markers */
+.map-ship {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.ship-icon {
+  width: 16px;
+  height: 16px;
+  background-color: #4CAF50;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.map-ship.ship-waiting .ship-icon {
+  background-color: #FF9800;
+}
+
+.ship-label {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Detection range circle */
+.detection-range {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(76, 175, 80, 0.5);
+  border-radius: 50%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Person markers */
+.map-person {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  pointer-events: none;
+}
+
+.person-icon {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.map-person.person-danger .person-icon {
+  background-color: #F44336;
+}
+
+.map-person.person-saved .person-icon {
+  background-color: #2196F3;
+}
+
+.person-label {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
