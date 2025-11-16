@@ -221,3 +221,35 @@ body, html, #root {
   white-space: nowrap;
 }
 
+/* --- (鑒) NEW CSS for Ocean Current Arrows --- */
+
+.current-arrow {
+  position: absolute;
+  /* 確保點擊事件穿透到地圖 */
+  pointer-events: none;
+  
+  /* 箭頭和文字的容器 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  /* (重要) transform-origin 在旋轉時保持置中 */
+  transform-origin: center;
+}
+
+.current-arrow-icon {
+  font-size: 18px; /* 箭頭大小 */
+  color: #00f;    /* 箭頭顏色 (藍色) */
+  line-height: 1;
+}
+
+.current-arrow-label {
+  font-size: 10px;
+  color: #000;
+  background-color: rgba(255, 255, 255, 0.5); /* 半透明背景 */
+  padding: 0 2px;
+  border-radius: 2px;
+  white-space: nowrap; /* 防止文字換行 */
+}
+
+/* --- (鑒) END NEW CSS --- */

@@ -7,10 +7,10 @@ export const MAP_MIN_Z = -1500;
 export const MAP_MAX_Z = 13500;
 
 // Geographical boundaries (WGS84)
-const LON_MIN = 121.6140;
-const LON_MAX = 121.9649;
-const LAT_MIN = 25.1228;
-const LAT_MAX = 25.2588;
+export const LON_MIN = 121.6140;
+export const LON_MAX = 121.9649;
+export const LAT_MIN = 25.1228;
+export const LAT_MAX = 25.2588;
 
 // --- HELPER ---
 
@@ -112,3 +112,60 @@ export const screenToUnity = (mouseX, mouseY, img, scale, pos) => {
   }
   return null;
 };
+
+const ORIGIN_LON = 109.0;
+// 緯度 (Row) 的原點 (我們假設 0 在最北邊)
+const ORIGIN_LAT_MAX = 39.0;
+// 每 1 度有多少格
+const CELLS_PER_DEGREE = 40; // (1 / 0.025)
+
+/**
+ * (輔助函數) 將單一經緯度點轉換為網格索引 [row, col]
+ * @param {number} lat - 緯度 (例如 37.5)
+ * @param {number} lon - 經度 (例如 110.2)
+ * @returns {{row: number, col: number}} 轉換後的索引
+ */
+function convertGeoToIndices(lat, lon) {
+  // (ASSUMPTION 1) Longitude (Column) Index:
+  // index = 0 at LON 109
+  // We use Math.round() to find the nearest grid cell index
+  const col = Math.round((lon - ORIGIN_LON) * CELLS_PER_DEGREE);
+
+  // (ASSUMPTION 2) Latitude (Row) Index:
+  // index = 0 at LAT 39 (the top of the grid)
+  // Index increases as latitude *decreases* (moving down the grid)
+  const row = Math.round((ORIGIN_LAT_MAX - lat) * CELLS_PER_DEGREE);
+
+  return { row, col };
+}
+
+/**
+ * (主要函數) 將經緯度範圍 (Bounding Box) 轉換為索引範圍
+ *
+ * @param {number} minLat - 範圍的最小緯度 (南邊)
+ * @param {number} minLon - 範圍的最小經度 (西邊)
+ * @param {number} maxLat - 範圍的最大緯度 (北邊)
+ * @param {number} maxLon - 範圍的最大經度 (東邊)
+ * @returns {{minRow: number, minCol: number, maxRow: number, maxCol: number}}
+ */
+export function convertGeoRangeToIndices(minLat, minLon, maxLat, maxLon) {
+  // 經度 (Column) 轉換：
+  // minLon -> minCol
+  // maxLon -> maxCol
+  const { col: minCol } = convertGeoToIndices(minLat, minLon); // lat doesn't matter for col
+  const { col: maxCol } = convertGeoToIndices(maxLat, maxLon); // lat doesn't matter for col
+
+  // 緯度 (Row) 轉換 (注意，這是反過來的)：
+  // maxLat (北) -> minRow (頂)
+  // minLat (南) -> maxRow (底)
+  const { row: minRow } = convertGeoToIndices(maxLat, minLon); // lon doesn't matter for row
+  const { row: maxRow } = convertGeoToIndices(minLat, maxLon); // lon doesn't matter for row
+
+  // 確保 min 總是小於 max
+  return {
+    minRow: Math.min(minRow, maxRow),
+    minCol: Math.min(minCol, maxCol),
+    maxRow: Math.max(minRow, maxRow),
+    maxCol: Math.max(minCol, maxCol),
+  };
+}
