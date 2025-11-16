@@ -2,142 +2,130 @@ import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import { api } from "./services/api";
 import SystemControlPanel from "./components/SystemControlPanel";
+// Import the new conversion functions
+import {
+  mapToScreen,
+  screenToLatLon,
+  screenToUnity
+} from "./utils/conversions";
 
 const init_scale = 1.0;
 const init_pos = { x: -5200, y: -4800 };
 
-// Map boundaries (Unity coordinates)
-const MAP_MIN_X = -6200;
-const MAP_MAX_X = 8800;
-const MAP_MIN_Z = -1500;
-const MAP_MAX_Z = 13500;
+// Map boundaries are now in conversions.js
+// const MAP_MIN_X = -6200; ...etc.
 
 function App() {
   const [scale, setScale] = useState(init_scale);
-	const [pos, setPos] = useState(init_pos);
-	const [dragging, setDragging] = useState(false);
-	const [start, setStart] = useState({ x: 0, y: 0 });
-	const [menuOpen, setMenuOpen] = useState(false);
-	const imgRef = useRef(null);
+  const [pos, setPos] = useState(init_pos);
+  const [dragging, setDragging] = useState(false);
+  const [start, setStart] = useState({ x: 0, y: 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const imgRef = useRef(null);
 
-	const [expandedSection, setExpandedSection] = useState(null);
-	const [mouseLatLon, setMouseLatLon] = useState({ lat: null, lon: null });
+  const [expandedSection, setExpandedSection] = useState(null);
+  const [mouseLatLon, setMouseLatLon] = useState({ lat: null, lon: null });
 
-	// API integration states
-	const [ships, setShips] = useState([]);
-	const [persons, setPersons] = useState([]);
-	const [connected, setConnected] = useState(false);
-	const [isRecording, setIsRecording] = useState(false);
-	const [waypoints, setWaypoints] = useState([]);
-	const [selectedShipCommand, setSelectedShipCommand] = useState('');
-	const [selectedShipWaypoint, setSelectedShipWaypoint] = useState('');
+  // API integration states
+  const [ships, setShips] = useState([]);
+  const [persons, setPersons] = useState([]);
+  const [connected, setConnected] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [waypoints, setWaypoints] = useState([]);
+  const [selectedShipCommand, setSelectedShipCommand] = useState('');
+  const [selectedShipWaypoint, setSelectedShipWaypoint] = useState('');
 
 
-	const toggleSection = (sectionName) => {
-		console.log(`Toggling section: ${sectionName}`); // Log when a section is toggled
-		setExpandedSection(expandedSection === sectionName ? null : sectionName);
-	};
+  const toggleSection = (sectionName) => {
+    console.log(`Toggling section: ${sectionName}`); // Log when a section is toggled
+    setExpandedSection(expandedSection === sectionName ? null : sectionName);
+  };
 
-	// Coordinate conversion: Unity map coordinates to screen pixels
-	const mapToScreen = (mapX, mapZ) => {
-		const img = imgRef.current;
-		if (!img || !img.naturalWidth || !img.naturalHeight) {
-			return { x: 0, y: 0 };
-		}
+  // Coordinate conversion: Unity map coordinates to screen pixels
+  // This function is now imported from utils/conversions.js
+  // const mapToScreen = (mapX, mapZ) => { ... };
 
-		// Calculate position within map bounds (0 to 1)
-		const normalizedX = (mapX - MAP_MIN_X) / (MAP_MAX_X - MAP_MIN_X);
-		const normalizedZ = (mapZ - MAP_MIN_Z) / (MAP_MAX_Z - MAP_MIN_Z);
+  // API functions
+  const fetchState = async () => {
+    try {
+      const data = await api.getStatus();
+      setShips(data.ships || []);
+      setPersons(data.personsInDistress?.persons || []);
+      setConnected(true);
+    } catch (error) {
+      setConnected(false);
+    }
+  };
 
-		// Convert to image pixel coordinates
-		const imgX = normalizedX * img.naturalWidth;
-		const imgY = (1 - normalizedZ) * img.naturalHeight; // Invert Y axis
+  const resetSimulation = async () => {
+    try {
+      await api.reset();
+      console.log('Simulation reset successfully');
+      setWaypoints([]);
+      await fetchState();
+    } catch (error) {
+      // Use a modal dialog instead of alert if possible
+      console.error(`重置模擬失敗: ${error.message}`);
+    }
+  };
 
-		// Apply current transform (scale and position)
-		const screenX = imgX * scale + pos.x;
-		const screenY = imgY * scale + pos.y;
+  const sendShipCommand = async (action, shipName) => {
+    if (!shipName) {
+      console.error('請先選擇船隻');
+      return;
+    }
 
-		return { x: screenX, y: screenY };
-	};
+    try {
+      const shipsToSend = [shipName];
+      await api.sendCommand(action, shipsToSend);
+      console.log(`Command ${action} sent to ${shipName}`);
+      await fetchState();
+    } catch (error) {
+      console.error(`發送指令失敗: ${error.message}`);
+    }
+  };
 
-	// API functions
-	const fetchState = async () => {
-		try {
-			const data = await api.getStatus();
-			setShips(data.ships || []);
-			setPersons(data.personsInDistress?.persons || []);
-			setConnected(true);
-		} catch (error) {
-			setConnected(false);
-		}
-	};
+  const toggleWaypointRecording = () => {
+    const newRecordingState = !isRecording;
+    setIsRecording(newRecordingState);
 
-	const resetSimulation = async () => {
-		try {
-			await api.reset();
-			console.log('Simulation reset successfully');
-			setWaypoints([]);
-			await fetchState();
-		} catch (error) {
-			alert(`重置模擬失敗: ${error.message}`);
-		}
-	};
+    if (newRecordingState) {
+      // Start recording - ask to clear existing waypoints
+      // NOTE: window.confirm is bad practice in production apps.
+      // Consider replacing with a custom modal.
+      if (waypoints.length > 0) {
+        if (!window.confirm('是否清空現有航點並開始錄製？')) {
+          setIsRecording(false);
+          return;
+        }
+      }
+      setWaypoints([]);
+    }
+  };
 
-	const sendShipCommand = async (action, shipName) => {
-		if (!shipName) {
-			alert('請先選擇船隻');
-			return;
-		}
+  const addWaypoint = async () => {
+    const shipName = selectedShipWaypoint;
 
-		try {
-			const shipsToSend = [shipName];
-			await api.sendCommand(action, shipsToSend);
-			console.log(`Command ${action} sent to ${shipName}`);
-			await fetchState();
-		} catch (error) {
-			alert(`發送指令失敗: ${error.message}`);
-		}
-	};
+    if (!shipName) {
+      console.error('請先選擇船隻');
+      return;
+    }
 
-	const toggleWaypointRecording = () => {
-		const newRecordingState = !isRecording;
-		setIsRecording(newRecordingState);
+    if (waypoints.length === 0) {
+      console.error('航點列表不能為空');
+      return;
+    }
 
-		if (newRecordingState) {
-			// Start recording - ask to clear existing waypoints
-			if (waypoints.length > 0) {
-				if (!window.confirm('是否清空現有航點並開始錄製？')) {
-					setIsRecording(false);
-					return;
-				}
-			}
-			setWaypoints([]);
-		}
-	};
+    try {
+      await api.sendWaypoints(shipName, waypoints);
+      console.log(`Waypoints sent to ${shipName}`);
+      await fetchState();
+    } catch (error) {
+      console.error(`發送航點失敗: ${error.message}`);
+    }
+  };
 
-	const addWaypoint = async () => {
-		const shipName = selectedShipWaypoint;
-
-		if (!shipName) {
-			alert('請先選擇船隻');
-			return;
-		}
-
-		if (waypoints.length === 0) {
-			alert('航點列表不能為空');
-			return;
-		}
-
-		try {
-			await api.sendWaypoints(shipName, waypoints);
-			console.log(`Waypoints sent to ${shipName}`);
-			await fetchState();
-		} catch (error) {
-			alert(`發送航點失敗: ${error.message}`);
-		}
-	};
-
-	// Image load effect
+  // Image load effect
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
@@ -147,29 +135,29 @@ function App() {
     };
   }, []);
 
-	// Polling effect
-	useEffect(() => {
-		fetchState(); // Initial fetch
+  // Polling effect
+  useEffect(() => {
+    fetchState(); // Initial fetch
 
-		const interval = setInterval(fetchState, 100); // Poll every 100ms
+    const interval = setInterval(fetchState, 100); // Poll every 100ms
 
-		return () => clearInterval(interval);
-	}, []);
+    return () => clearInterval(interval);
+  }, []);
 
-	// Set default ship selections when ships data is loaded
-	useEffect(() => {
-		if (ships.length > 0) {
-			// Only set default if current selection is empty or invalid
-			const shipNames = ships.map(s => s.name);
+  // Set default ship selections when ships data is loaded
+  useEffect(() => {
+    if (ships.length > 0) {
+      // Only set default if current selection is empty or invalid
+      const shipNames = ships.map(s => s.name);
 
-			if (!selectedShipCommand || !shipNames.includes(selectedShipCommand)) {
-				setSelectedShipCommand(ships[0].name);
-			}
-			if (!selectedShipWaypoint || !shipNames.includes(selectedShipWaypoint)) {
-				setSelectedShipWaypoint(ships[0].name);
-			}
-		}
-	}, [ships, selectedShipCommand, selectedShipWaypoint]);
+      if (!selectedShipCommand || !shipNames.includes(selectedShipCommand)) {
+        setSelectedShipCommand(ships[0].name);
+      }
+      if (!selectedShipWaypoint || !shipNames.includes(selectedShipWaypoint)) {
+        setSelectedShipWaypoint(ships[0].name);
+      }
+    }
+  }, [ships, selectedShipCommand, selectedShipWaypoint]);
 
   const handleWheel = (e) => {
     e.preventDefault();
@@ -193,29 +181,26 @@ function App() {
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
 
-    // 取得滑鼠在 map 容器內的座標（像素）
+    // Get mouse position inside the map container
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // 將螢幕座標轉成地圖座標
-    const mapX = (mouseX - pos.x) / scale;
-    const mapY = (mouseY - pos.y) / scale;
-
-    // === 經緯度換算 ===
-    // 地圖橫向 (X) 對應經度，縱向 (Y) 對應緯度。
-    const lon_min = 121.6140;
-    const lon_max = 121.9649;
-    const lat_min = 25.1228;
-    const lat_max = 25.2588;
-
-    const img = imgRef.current;
-    if (img && img.naturalWidth && img.naturalHeight) {
-      const lon = lon_min + (mapX / img.naturalWidth) * (lon_max - lon_min);
-      const lat = lat_max - (mapY / img.naturalHeight) * (lat_max - lat_min);
-      setMouseLatLon({ lat, lon });
+    // === Lat/Lon Conversion ===
+    // Use the imported function
+    const latLon = screenToLatLon(
+      mouseX,
+      mouseY,
+      imgRef.current,
+      scale,
+      pos
+    );
+    if (latLon) {
+      setMouseLatLon(latLon);
+    } else {
+      setMouseLatLon({ lat: null, lon: null });
     }
 
-    // === 拖曳邏輯 ===
+    // === Dragging Logic ===
     if (dragging) {
       setPos({ x: e.clientX - start.x, y: e.clientY - start.y });
     }
@@ -224,40 +209,33 @@ function App() {
 
   const handleMouseUp = () => setDragging(false);
 
-	const handleMapClick = (e) => {
-		if (!isRecording) return;
+  const handleMapClick = (e) => {
+    if (!isRecording) return;
 
-		const rect = e.currentTarget.getBoundingClientRect();
-		const mouseX = e.clientX - rect.left;
-		const mouseY = e.clientY - rect.top;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
-		// Convert screen coordinates to image pixel coordinates
-		const mapX = (mouseX - pos.x) / scale;
-		const mapY = (mouseY - pos.y) / scale;
+    // === Screen to Unity Conversion ===
+    // Use the imported function
+    const unityCoords = screenToUnity(
+      mouseX,
+      mouseY,
+      imgRef.current,
+      scale,
+      pos
+    );
 
-		const img = imgRef.current;
-		if (img && img.naturalWidth && img.naturalHeight) {
-			// Convert image pixel to normalized coordinates (0 to 1)
-			const normalizedX = mapX / img.naturalWidth;
-			const normalizedY = mapY / img.naturalHeight;
+    if (unityCoords) {
+      const newWaypoint = [
+        parseFloat(unityCoords.unityX.toFixed(1)),
+        0.0, // Y coordinate is 0.0
+        parseFloat(unityCoords.unityZ.toFixed(1))
+      ];
 
-			// Convert to Unity coordinates
-			// X: straightforward mapping
-			const unityX = MAP_MIN_X + normalizedX * (MAP_MAX_X - MAP_MIN_X);
-
-			// Z: need to invert Y axis (image Y goes down, Unity Z goes up)
-			const normalizedZ = 1 - normalizedY;
-			const unityZ = MAP_MIN_Z + normalizedZ * (MAP_MAX_Z - MAP_MIN_Z);
-
-			const newWaypoint = [
-				parseFloat(unityX.toFixed(1)),
-				0.0,
-				parseFloat(unityZ.toFixed(1))
-			];
-
-			setWaypoints([...waypoints, newWaypoint]);
-		}
-	};
+      setWaypoints([...waypoints, newWaypoint]);
+    }
+  };
 
   const resetView = () => {
     const img = imgRef.current;
@@ -270,12 +248,12 @@ function App() {
   return (
     <div className="app">
 
-      {/* 左上角標題 */}
+      {/* Top-left title */}
       <div className="title-box">
         智慧化 AI 船群搜救模擬系統
       </div>
 
-      {/* 地圖區域在最底層 */}
+      {/* Map container as the base layer */}
       <div
         className="map-container"
         onWheel={handleWheel}
@@ -300,7 +278,14 @@ function App() {
 
         {/* Ship markers */}
         {ships.map(ship => {
-          const { x, y } = mapToScreen(ship.position.x, ship.position.z);
+          // Use the imported function, passing dependencies
+          const { x, y } = mapToScreen(
+            ship.position.x,
+            ship.position.z,
+            imgRef.current,
+            scale,
+            pos
+          );
           return (
             <div key={ship.name}>
               {/* Detection range circle */}
@@ -332,7 +317,14 @@ function App() {
 
         {/* Person markers */}
         {persons.map(person => {
-          const { x, y } = mapToScreen(person.position.x, person.position.z);
+          // Use the imported function, passing dependencies
+          const { x, y } = mapToScreen(
+            person.position.x,
+            person.position.z,
+            imgRef.current,
+            scale,
+            pos
+          );
           return (
             <div
               key={person.id}
@@ -351,7 +343,7 @@ function App() {
         })}
       </div>
 
-      {/* 選單浮在地圖上 */}
+      {/* Menu floating on the map */}
       <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>
         ☰
       </button>
@@ -359,17 +351,17 @@ function App() {
 
         <h2>選單</h2>
 
-        {/* 系統控制 */}
+        {/* System Control */}
         <div className="accordion-section">
           <div className="accordion-title" onClick={() => {
-            // 切換 expandedSection，但不在 side-menu 内展開
+            // Toggle expandedSection, but don't expand inside side-menu
             setExpandedSection(expandedSection === "system" ? null : "system");
           }}>
             系統控制
           </div>
         </div>
 
-        {/* 船隻指令 */}
+        {/* Ship Commands */}
         <div className="accordion-section">
           <div className="accordion-title" onClick={() => toggleSection("ship")}>
             船隻控制
@@ -390,7 +382,7 @@ function App() {
           )}
         </div>
 
-        {/* 航點錄製 */}
+        {/* Waypoint Recording */}
         <div className="accordion-section">
           <div className="accordion-title" onClick={() => toggleSection("waypoint")}>
             航點錄製
@@ -431,7 +423,7 @@ function App() {
 
       </div>
 
-      {/* 左下角經緯度顯示 */}
+      {/* Bottom-left lat/lon display */}
       <div className="mouse-coord-box">
         {mouseLatLon.lat && mouseLatLon.lon ? (
           <>
@@ -444,7 +436,7 @@ function App() {
       </div>
 
 
-      {/* 系統控制面板 */}      
+      {/* System Control Panel */}
       {expandedSection === "system" && (
         console.log("Rendering SystemControlPanel"), // Log when the panel is rendered
         <SystemControlPanel
