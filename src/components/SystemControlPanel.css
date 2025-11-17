@@ -68,19 +68,34 @@
   color: white; /* Match content text color */
 }
 
-/* Corrected hover effect for "重置模擬" */
-.system-panel-content .reset-simulation {
-  cursor: pointer;
-  color: white; /* Default color */
-  font-weight: bold;
-  padding: 10px 0;
-  text-align: left; /* Align text to the left */
-  border-bottom: 1px solid #555;
-  transition: color 0.3s; /* Smooth hover effect */
+/* Added styles for green buttons with hover effect */
+.reset-simulation {
+  background-color: #4CAF50; /* Green background */
+  color: white; /* White text */
+  border: none; /* Remove border */
+  padding: 10px 20px; /* Add padding */
+  border-radius: 4px; /* Rounded corners */
+  cursor: pointer; /* Pointer cursor */
+  transition: background-color 0.3s; /* Smooth hover effect */
 }
 
-.system-panel-content .reset-simulation:hover {
-  color: #ffcc00; /* Hover color */
+.reset-simulation:hover {
+  background-color: #66BB6A; /* Lighter green on hover */
+}
+
+/* Added styles for red stop button with hover effect */
+.stop-button {
+  background-color: #F44336; /* Red background */
+  color: white; /* White text */
+  border: none; /* Remove border */
+  padding: 10px 20px; /* Add padding */
+  border-radius: 4px; /* Rounded corners */
+  cursor: pointer; /* Pointer cursor */
+  transition: background-color 0.3s; /* Smooth hover effect */
+}
+
+.stop-button:hover {
+  background-color: #E57373; /* Lighter red on hover */
 }
 
 /* Added spacing between "系統控制" and "重置模擬" */

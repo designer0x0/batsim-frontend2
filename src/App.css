@@ -253,3 +253,9 @@ body, html, #root {
 }
 
 /* --- (鑒) END NEW CSS --- */
+
+/* Added gray divider between side-menu options */
+.side-menu .divider {
+  border-bottom: 1px solid #555; /* Gray line */
+  margin: 10px 0; /* Add spacing */
+}
