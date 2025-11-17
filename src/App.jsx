@@ -19,6 +19,9 @@ import {
 import { getCurrentDataInRange } from "./utils/current";
 import { api } from "./services/api";
 import SystemControlPanel from "./components/SystemControlPanel";
+import ShipControlPanel from "./components/ShipControlPanel";
+import WaypointPanel from "./components/WaypointPanel";
+
 
 const init_scale = 1.0;
 const init_pos = { x: -5200, y: -4800 };
@@ -65,6 +68,8 @@ function App() {
   const [waypoints, setWaypoints] = useState([]);
   const [selectedShipCommand, setSelectedShipCommand] = useState("");
   const [selectedShipWaypoint, setSelectedShipWaypoint] = useState("");
+  const [openPanel, setOpenPanel] = useState(null);  // "system" | "ship" | "waypoint" | null
+
 
   // --- (鑒) NEW: State for ocean current arrows ---
   const [currentArrows, setCurrentArrows] = useState([]);
@@ -551,90 +556,27 @@ function App() {
         <h2>選單</h2>
 
         {/* System Control */}
-        <div className="accordion-section">
-          <div
-            className="accordion-title"
-            onClick={() => {
-              setExpandedSection(expandedSection === "system" ? null : "system");
-            }}
-          >
+        <div>
+          <div className="accordion-title" onClick={() => setOpenPanel("system")}>
             系統控制
           </div>
+          <div className="divider"></div> {/* Divider */}
         </div>
 
         {/* Ship Commands */}
-        <div className="accordion-section">
-          <div className="accordion-title" onClick={() => toggleSection("ship")}>
+        <div>
+          <div className="accordion-title" onClick={() => setOpenPanel("ship")}>
             船隻控制
           </div>
-          {expandedSection === "ship" && (
-            <div className="accordion-content">
-              <select
-                value={selectedShipCommand}
-                onChange={(e) => setSelectedShipCommand(e.target.value)}
-              >
-                {ships.map((ship) => (
-                  <option key={ship.name} value={ship.name}>
-                    {ship.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => sendShipCommand("start", selectedShipCommand)}
-              >
-                啟動
-              </button>
-              <button
-                onClick={() => sendShipCommand("stop", selectedShipCommand)}
-              >
-                停止
-              </button>
-            </div>
-          )}
+          <div className="divider"></div> {/* Divider */}
         </div>
 
         {/* Waypoint Recording */}
-        <div className="accordion-section">
-          <div
-            className="accordion-title"
-            onClick={() => toggleSection("waypoint")}
-          >
+        <div>
+          <div className="accordion-title" onClick={() => setOpenPanel("waypoint")}>
             航點錄製
           </div>
-          {expandedSection === "waypoint" && (
-            <div className="accordion-content">
-              <button
-                onClick={toggleWaypointRecording}
-                style={{
-                  backgroundColor: isRecording ? "#f44336" : "",
-                  color: isRecording ? "white" : "",
-                }}
-              >
-                {isRecording ? "停止錄製" : "錄製航點"}
-              </button>
-              <select
-                value={selectedShipWaypoint}
-                onChange={(e) => setSelectedShipWaypoint(e.target.value)}
-              >
-                {ships.map((ship) => (
-                  <option key={ship.name} value={ship.name}>
-                    {ship.name}
-                  </option>
-                ))}
-              </select>
-              <button onClick={addWaypoint}>送出航點</button>
-              <textarea
-                readOnly
-                rows="6"
-                value={JSON.stringify(waypoints, null, 2)}
-                style={{
-                  width: "100%",
-                  fontFamily: "monospace",
-                  fontSize: "11px",
-                }}
-              />
-            </div>
-          )}
+          <div className="divider"></div> {/* Divider */}
         </div>
 
         <ul>
@@ -654,15 +596,34 @@ function App() {
         )}
       </div>
 
-      {/* System Control Panel */}
-      {expandedSection === "system" && (
+      {openPanel === "system" && (
         <SystemControlPanel
-          onClose={() => setExpandedSection(null)}
+          onClose={() => setOpenPanel(null)}
           connected={connected}
           resetSimulation={resetSimulation}
-          // --- (鑒) 你可能想把 toggleOceanCurrent 傳遞下去 ---
-          toggleOceanCurrent={toggleOceanCurrent}
-          // --- END NEW PROPS ---
+        />
+      )}
+
+      {openPanel === "ship" && (
+        <ShipControlPanel
+          onClose={() => setOpenPanel(null)}
+          ships={ships}
+          selectedShipCommand={selectedShipCommand}
+          setSelectedShipCommand={setSelectedShipCommand}
+          sendShipCommand={sendShipCommand}
+        />
+      )}
+
+      {openPanel === "waypoint" && (
+        <WaypointPanel
+          onClose={() => setOpenPanel(null)}
+          ships={ships}
+          selectedShipWaypoint={selectedShipWaypoint}
+          setSelectedShipWaypoint={setSelectedShipWaypoint}
+          isRecording={isRecording}
+          toggleWaypointRecording={toggleWaypointRecording}
+          waypoints={waypoints}
+          addWaypoint={addWaypoint}
         />
       )}
     </div>
