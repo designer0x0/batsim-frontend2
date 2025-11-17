@@ -68,6 +68,11 @@ function App() {
   // Saved routes states
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState("");
+  // Spawn persons states
+  const [spawnMode, setSpawnMode] = useState(false);
+  const [spawnCenter, setSpawnCenter] = useState(null);
+  const [spawnCount, setSpawnCount] = useState(5);
+  const [spawnRadius, setSpawnRadius] = useState(100.0);
 
   // --- (鑒) NEW: State for ocean current arrows ---
   const [currentArrows, setCurrentArrows] = useState([]);
@@ -299,6 +304,49 @@ function App() {
     }
   };
 
+  const toggleSpawnMode = () => {
+    const newSpawnMode = !spawnMode;
+    setSpawnMode(newSpawnMode);
+
+    if (!newSpawnMode) {
+      // Exit spawn mode, clear spawn center
+      setSpawnCenter(null);
+    }
+  };
+
+  const spawnPersons = async () => {
+    if (!spawnCenter) {
+      console.error("請先選擇生成位置");
+      return;
+    }
+
+    if (spawnCount <= 0) {
+      console.error("生成數量必須大於 0");
+      return;
+    }
+
+    if (spawnRadius <= 0) {
+      console.error("生成半徑必須大於 0");
+      return;
+    }
+
+    try {
+      const center = {
+        x: spawnCenter.x,
+        y: 0.0,
+        z: spawnCenter.z
+      };
+
+      await api.spawnPersons(spawnCount, spawnRadius, center);
+      console.log(`已生成 ${spawnCount} 個待救者於 (${center.x}, ${center.z})`);
+      setSpawnCenter(null);
+      setSpawnMode(false);
+      await fetchState();
+    } catch (error) {
+      console.error(`生成待救者失敗: ${error.message}`);
+    }
+  };
+
   // Image load effect
   useEffect(() => {
     const img = imgRef.current;
@@ -420,7 +468,6 @@ function App() {
   };
 
   const handleMapClick = (e) => {
-    if (!isRecording) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
@@ -431,7 +478,20 @@ function App() {
       scale,
       pos
     );
-    if (unityCoords) {
+
+    if (!unityCoords) return;
+
+    // Handle spawn mode
+    if (spawnMode) {
+      setSpawnCenter({
+        x: parseFloat(unityCoords.unityX.toFixed(1)),
+        z: parseFloat(unityCoords.unityZ.toFixed(1))
+      });
+      return;
+    }
+
+    // Handle waypoint recording
+    if (isRecording) {
       const newWaypoint = [
         parseFloat(unityCoords.unityX.toFixed(1)),
         0.0, // Y coordinate is 0.0
@@ -463,7 +523,7 @@ function App() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onClick={handleMapClick}
-        style={{ cursor: isRecording ? "crosshair" : "default" }}
+        style={{ cursor: (isRecording || spawnMode) ? "crosshair" : "default" }}
       >
         <img
           ref={imgRef}
@@ -542,6 +602,44 @@ function App() {
             </div>
           );
         })}
+
+        {/* Spawn range visualization */}
+        {spawnCenter && (
+          <>
+            {/* Spawn range circle */}
+            <div
+              className="spawn-range"
+              style={{
+                left: `${mapToScreen(spawnCenter.x, spawnCenter.z, imgRef.current, scale, pos).x}px`,
+                top: `${mapToScreen(spawnCenter.x, spawnCenter.z, imgRef.current, scale, pos).y}px`,
+                width: `${spawnRadius * scale * 2}px`,
+                height: `${spawnRadius * scale * 2}px`,
+                border: "2px dashed #ff9800",
+                borderRadius: "50%",
+                position: "absolute",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+                backgroundColor: "rgba(255, 152, 0, 0.1)",
+              }}
+            />
+            {/* Spawn center marker */}
+            <div
+              className="spawn-center"
+              style={{
+                left: `${mapToScreen(spawnCenter.x, spawnCenter.z, imgRef.current, scale, pos).x}px`,
+                top: `${mapToScreen(spawnCenter.x, spawnCenter.z, imgRef.current, scale, pos).y}px`,
+                position: "absolute",
+                transform: "translate(-50%, -50%)",
+                width: "12px",
+                height: "12px",
+                backgroundColor: "#ff9800",
+                borderRadius: "50%",
+                border: "2px solid white",
+                pointerEvents: "none",
+              }}
+            />
+          </>
+        )}
 
         {/* --- (鑒) MODIFIED: Ocean Current Arrows --- */}
         {currentArrows.map((arrow) => {
@@ -696,6 +794,71 @@ function App() {
                   fontSize: "11px",
                 }}
               />
+            </div>
+          )}
+        </div>
+
+        {/* Spawn Persons Section */}
+        <div className="accordion-section">
+          <div
+            className="accordion-title"
+            onClick={() => toggleSection("spawn")}
+          >
+            設定待救者位置
+          </div>
+          {expandedSection === "spawn" && (
+            <div className="accordion-content">
+              <label style={{ display: "block", marginBottom: "5px" }}>
+                生成數量
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={spawnCount}
+                onChange={(e) => setSpawnCount(parseInt(e.target.value) || 1)}
+                style={{ width: "100%", marginBottom: "10px" }}
+              />
+
+              <label style={{ display: "block", marginBottom: "5px" }}>
+                生成半徑
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                value={spawnRadius}
+                onChange={(e) => setSpawnRadius(parseFloat(e.target.value) || 1.0)}
+                style={{ width: "100%", marginBottom: "10px" }}
+              />
+
+              <button
+                onClick={toggleSpawnMode}
+                style={{
+                  backgroundColor: spawnMode ? "#f44336" : "",
+                  color: spawnMode ? "white" : "",
+                  marginBottom: "10px",
+                }}
+              >
+                {spawnMode ? "取消選擇" : "選擇位置"}
+              </button>
+
+              {spawnCenter && (
+                <div style={{ fontSize: "11px", color: "#666", marginBottom: "10px" }}>
+                  中心點: ({spawnCenter.x.toFixed(1)}, {spawnCenter.z.toFixed(1)})
+                </div>
+              )}
+
+              <button
+                onClick={spawnPersons}
+                disabled={!spawnCenter}
+                style={{
+                  width: "100%",
+                  backgroundColor: spawnCenter ? "#4CAF50" : "",
+                  color: spawnCenter ? "white" : "",
+                }}
+              >
+                生成待救者
+              </button>
             </div>
           )}
         </div>

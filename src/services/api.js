@@ -104,5 +104,39 @@ export const api = {
       console.error('Send waypoints error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Spawn persons in distress at a specified location
+   * @param {number} count - Number of persons to spawn
+   * @param {number} radius - Spawn radius
+   * @param {Object} center - Center point {x, y, z}
+   * @returns {Promise<Object>} Response data
+   */
+  async spawnPersons(count, radius, center) {
+    try {
+      const response = await fetch(`${API_URL}/spawn_persons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          count: count,
+          radius: radius,
+          center: center
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || `Spawn persons failed with status: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Spawn persons error:', error);
+      throw error;
+    }
   }
 };
