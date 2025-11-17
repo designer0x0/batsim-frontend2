@@ -577,7 +577,7 @@ function App() {
         })}
 
         {/* Person markers */}
-        {persons.map((person) => {
+        {persons.filter(person => person.isSaved).map((person) => {
           const { x, y } = mapToScreen(
             person.position.x,
             person.position.z,
