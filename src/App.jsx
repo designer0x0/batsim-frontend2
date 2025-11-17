@@ -19,6 +19,11 @@ import {
 import { getCurrentDataInRange } from "./utils/current";
 import { api } from "./services/api";
 import SystemControlPanel from "./components/SystemControlPanel";
+import {
+  calculateRescueArea,
+  generateRescueTargets,
+  buildRescueRoute,
+} from "./utils/rescueUtils";
 
 const init_scale = 1.0;
 const init_pos = { x: -5200, y: -4800 };
@@ -73,6 +78,8 @@ function App() {
   const [spawnCenter, setSpawnCenter] = useState(null);
   const [spawnCount, setSpawnCount] = useState(5);
   const [spawnRadius, setSpawnRadius] = useState(100.0);
+  // Rescue operation state
+  const [rescueInProgress, setRescueInProgress] = useState(false);
 
   // --- (鑒) NEW: State for ocean current arrows ---
   const [currentArrows, setCurrentArrows] = useState([]);
@@ -344,6 +351,85 @@ function App() {
       await fetchState();
     } catch (error) {
       console.error(`生成待救者失敗: ${error.message}`);
+    }
+  };
+
+  const startRescue = async () => {
+    if (rescueInProgress) {
+      console.error("搜救已在進行中");
+      return;
+    }
+
+    try {
+      setRescueInProgress(true);
+
+      // Calculate rescue area
+      const area = calculateRescueArea(persons);
+      if (!area) {
+        console.error("沒有待救者");
+        setRescueInProgress(false);
+        return;
+      }
+
+      // Check if ships and base route exist
+      if (ships.length === 0) {
+        console.error("沒有可用船隻");
+        setRescueInProgress(false);
+        return;
+      }
+
+      const baseRoute = savedRoutes.find((r) => r.id === "route_001");
+      if (!baseRoute) {
+        console.error("找不到出港路徑 (route_001)");
+        setRescueInProgress(false);
+        return;
+      }
+
+      // Get the end point of the base route
+      const lastWaypoint = baseRoute.waypoints[baseRoute.waypoints.length - 1];
+      const startPoint = { x: lastWaypoint[0], z: lastWaypoint[2] };
+
+      // Generate parallel rescue targets for each ship
+      const targets = generateRescueTargets(
+        startPoint,
+        area.centerX,
+        area.centerZ,
+        area.radius,
+        ships.length
+      );
+
+      console.log(`開始搜救: 中心點 (${area.centerX.toFixed(1)}, ${area.centerZ.toFixed(1)}), 半徑 ${area.radius.toFixed(1)}`);
+
+      // Send waypoints to each ship
+      for (let i = 0; i < ships.length; i++) {
+        const ship = ships[i];
+        const target = targets[i];
+
+        // Build complete route: base route + intermediate waypoints + target
+        const completeRoute = buildRescueRoute(baseRoute, target, 5);
+
+        console.log(`發送航點給 ${ship.name}: ${completeRoute.length} 個航點`);
+        await api.sendWaypoints(ship.name, completeRoute);
+      }
+
+      // Start all ships with delay between each
+      for (let i = 0; i < ships.length; i++) {
+        const ship = ships[i];
+        await api.sendCommand("start", [ship.name]);
+        console.log(`已啟動 ${ship.name}`);
+
+        // Delay before starting next ship (except for the last one)
+        if (i < ships.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 10000));  // delay
+        }
+      }
+
+      console.log("所有船隻已啟動");
+      setRescueInProgress(false);
+      await fetchState();
+    } catch (error) {
+      console.error(`搜救失敗: ${error.message}`);
+      setRescueInProgress(false);
     }
   };
 
@@ -859,6 +945,61 @@ function App() {
               >
                 生成待救者
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Auto Rescue Section */}
+        <div className="accordion-section">
+          <div
+            className="accordion-title"
+            onClick={() => toggleSection("rescue")}
+          >
+            自動搜救
+          </div>
+          {expandedSection === "rescue" && (
+            <div className="accordion-content">
+              {(() => {
+                const area = calculateRescueArea(persons);
+                const personsInDistress = persons.filter(p => !p.isSaved);
+
+                return (
+                  <>
+                    <div style={{ fontSize: "12px", marginBottom: "10px" }}>
+                      <div>待救者數量: {personsInDistress.length}</div>
+                      {area && (
+                        <>
+                          <div>中心點: ({area.centerX.toFixed(1)}, {area.centerZ.toFixed(1)})</div>
+                          <div>半徑: {area.radius.toFixed(1)}</div>
+                        </>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={startRescue}
+                      disabled={rescueInProgress || personsInDistress.length === 0 || ships.length === 0}
+                      style={{
+                        width: "100%",
+                        backgroundColor: rescueInProgress ? "#ccc" : (personsInDistress.length > 0 && ships.length > 0 ? "#ff5722" : ""),
+                        color: (personsInDistress.length > 0 && ships.length > 0) ? "white" : "",
+                      }}
+                    >
+                      {rescueInProgress ? "搜救進行中..." : "開始搜救"}
+                    </button>
+
+                    {personsInDistress.length === 0 && (
+                      <div style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>
+                        無待救者
+                      </div>
+                    )}
+                    {ships.length === 0 && (
+                      <div style={{ fontSize: "11px", color: "#999", marginTop: "10px" }}>
+                        無可用船隻
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
