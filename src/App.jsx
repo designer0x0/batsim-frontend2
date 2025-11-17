@@ -65,6 +65,9 @@ function App() {
   const [waypoints, setWaypoints] = useState([]);
   const [selectedShipCommand, setSelectedShipCommand] = useState("");
   const [selectedShipWaypoint, setSelectedShipWaypoint] = useState("");
+  // Saved routes states
+  const [savedRoutes, setSavedRoutes] = useState([]);
+  const [selectedRoute, setSelectedRoute] = useState("");
 
   // --- (鑒) NEW: State for ocean current arrows ---
   const [currentArrows, setCurrentArrows] = useState([]);
@@ -281,6 +284,21 @@ function App() {
     }
   };
 
+  const loadRoute = () => {
+    if (!selectedRoute) {
+      console.error("請選擇路徑");
+      return;
+    }
+
+    const route = savedRoutes.find((r) => r.id === selectedRoute);
+    if (route) {
+      setWaypoints(route.waypoints);
+      console.log(`載入路徑: ${route.name} (${route.waypoints.length} 個航點)`);
+    } else {
+      console.error("找不到指定的路徑");
+    }
+  };
+
   // Image load effect
   useEffect(() => {
     const img = imgRef.current;
@@ -296,6 +314,22 @@ function App() {
     fetchState(); // Initial fetch
     const interval = setInterval(fetchState, 100); // Poll every 100ms
     return () => clearInterval(interval);
+  }, []);
+
+  // Load saved routes from JSON file
+  useEffect(() => {
+    const loadRoutes = async () => {
+      try {
+        const response = await fetch('/routes.json');
+        const data = await response.json();
+        setSavedRoutes(data.routes || []);
+        console.log(`載入 ${data.routes?.length || 0} 條路徑`);
+      } catch (error) {
+        console.error('載入路徑失敗:', error);
+        setSavedRoutes([]);
+      }
+    };
+    loadRoutes();
   }, []);
 
   // Set default ship selections when ships data is loaded
@@ -494,9 +528,8 @@ function App() {
           return (
             <div
               key={person.id}
-              className={`map-person ${
-                person.isSaved ? "person-saved" : "person-danger"
-              }`}
+              className={`map-person ${person.isSaved ? "person-saved" : "person-danger"
+                }`}
               style={{
                 left: `${x}px`,
                 top: `${y}px`,
@@ -603,6 +636,36 @@ function App() {
           </div>
           {expandedSection === "waypoint" && (
             <div className="accordion-content">
+              {/* Saved Routes Section */}
+              {savedRoutes.length > 0 && (
+                <div style={{ marginBottom: "15px", paddingBottom: "15px", borderBottom: "1px solid #ddd" }}>
+                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                    載入預設路徑
+                  </label>
+                  <select
+                    value={selectedRoute}
+                    onChange={(e) => setSelectedRoute(e.target.value)}
+                    style={{ marginBottom: "5px" }}
+                  >
+                    <option value="">請選擇路徑</option>
+                    {savedRoutes.map((route) => (
+                      <option key={route.id} value={route.id}>
+                        {route.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={loadRoute} disabled={!selectedRoute}>
+                    載入路徑
+                  </button>
+                  {selectedRoute && savedRoutes.find((r) => r.id === selectedRoute)?.description && (
+                    <div style={{ fontSize: "11px", color: "#666", marginTop: "5px" }}>
+                      {savedRoutes.find((r) => r.id === selectedRoute).description}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Recording Controls */}
               <button
                 onClick={toggleWaypointRecording}
                 style={{
@@ -662,7 +725,7 @@ function App() {
           resetSimulation={resetSimulation}
           // --- (鑒) 你可能想把 toggleOceanCurrent 傳遞下去 ---
           toggleOceanCurrent={toggleOceanCurrent}
-          // --- END NEW PROPS ---
+        // --- END NEW PROPS ---
         />
       )}
     </div>
