@@ -73,6 +73,7 @@ function App() {
   const [waypoints, setWaypoints] = useState([]);
   const [selectedShipCommand, setSelectedShipCommand] = useState("");
   const [selectedShipWaypoint, setSelectedShipWaypoint] = useState("");
+  const [trackedShip, setTrackedShip] = useState("");
   // Saved routes states
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState("");
@@ -488,6 +489,28 @@ function App() {
   useEffect(() => {
     viewStateRef.current = { scale, pos };
   }, [scale, pos]);
+
+  // When a ship is selected to be tracked, center the view on that ship
+  useEffect(() => {
+    if (!trackedShip) return; // empty => global
+    const ship = ships.find((s) => s.name === trackedShip);
+    if (!ship) return;
+    if (!imgRef.current || !mapContainerRef.current) return;
+    const img = imgRef.current;
+    if (!img.naturalWidth || !img.naturalHeight) return;
+
+    const normalizedX = (ship.position.x - MAP_MIN_X) / (MAP_MAX_X - MAP_MIN_X);
+    const normalizedZ = (ship.position.z - MAP_MIN_Z) / (MAP_MAX_Z - MAP_MIN_Z);
+
+    const imgX = normalizedX * img.naturalWidth;
+    const imgY = (1 - normalizedZ) * img.naturalHeight;
+
+    const { width, height } = mapContainerRef.current.getBoundingClientRect();
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    setPos({ x: centerX - imgX * scale, y: centerY - imgY * scale });
+  }, [trackedShip, ships, scale]);
 
   // Effect to update arrows on mount
   useEffect(() => {
@@ -1004,6 +1027,9 @@ function App() {
           resetSimulation={resetSimulation}
           // --- (鑒) 你可能想把 toggleOceanCurrent 傳遞下去 ---
           toggleOceanCurrent={toggleOceanCurrent}
+          ships={ships}
+          trackedShip={trackedShip}
+          setTrackedShip={setTrackedShip}
         // --- END NEW PROPS ---
         />
       )}

@@ -6,6 +6,9 @@ function SystemControlPanel({
   onClose,
   connected,
   resetSimulation,
+  ships = [],
+  trackedShip,
+  setTrackedShip,
 }) {
   return (
     <div className="system-panel">
@@ -18,6 +21,22 @@ function SystemControlPanel({
       </div>
 
       <div className="system-panel-content">
+        {/* 追蹤選單 */}
+        <div style={{ marginBottom: "10px" }}>
+          <label style={{ display: "block", fontSize: "12px", marginBottom: "4px" }}>視角追蹤</label>
+          <select
+            value={trackedShip || ""}
+            onChange={(e) => setTrackedShip && setTrackedShip(e.target.value || "")}
+            style={{ width: "100%" }}
+          >
+            <option value="">全域</option>
+            {ships.map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="divider"></div> {/* White line divider */}
         <div
           className="reset-simulation"
