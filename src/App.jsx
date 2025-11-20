@@ -49,6 +49,69 @@ function mapRange(value, inMin, inMax, outMin, outMax) {
 }
 // --- (鑒) END NEW ---
 
+// --- NEW: Map boundary constraint functions ---
+/**
+ * Calculate minimum scale to fit the entire map in the container
+ * @param {HTMLImageElement} img - Map image element
+ * @param {DOMRect} containerRect - Container dimensions
+ * @returns {number} Minimum scale value
+ */
+function getMinScale(img, containerRect) {
+  if (!img || !img.naturalWidth || !img.naturalHeight || !containerRect) {
+    return 0.5; // Fallback value
+  }
+  const scaleX = containerRect.width / img.naturalWidth;
+  const scaleY = containerRect.height / img.naturalHeight;
+  return Math.max(scaleX, scaleY);
+}
+
+/**
+ * Clamp map position to prevent viewing outside map boundaries
+ * @param {number} scale - Current scale
+ * @param {{x: number, y: number}} pos - Desired position
+ * @param {HTMLImageElement} img - Map image element
+ * @param {DOMRect} containerRect - Container dimensions
+ * @returns {{x: number, y: number}} Clamped position
+ */
+function clampPosition(scale, pos, img, containerRect) {
+  if (!img || !img.naturalWidth || !img.naturalHeight || !containerRect) {
+    return pos;
+  }
+
+  const mapWidth = img.naturalWidth * scale;
+  const mapHeight = img.naturalHeight * scale;
+  const containerWidth = containerRect.width;
+  const containerHeight = containerRect.height;
+
+  let clampedX = pos.x;
+  let clampedY = pos.y;
+
+  // Clamp X axis
+  if (mapWidth >= containerWidth) {
+    // Map is wider than container: prevent edges from showing
+    const minX = containerWidth - mapWidth; // Right boundary
+    const maxX = 0; // Left boundary
+    clampedX = Math.max(minX, Math.min(maxX, pos.x));
+  } else {
+    // Map is narrower: center it
+    clampedX = (containerWidth - mapWidth) / 2;
+  }
+
+  // Clamp Y axis
+  if (mapHeight >= containerHeight) {
+    // Map is taller than container: prevent edges from showing
+    const minY = containerHeight - mapHeight; // Bottom boundary
+    const maxY = 0; // Top boundary
+    clampedY = Math.max(minY, Math.min(maxY, pos.y));
+  } else {
+    // Map is shorter: center it
+    clampedY = (containerHeight - mapHeight) / 2;
+  }
+
+  return { x: clampedX, y: clampedY };
+}
+// --- END NEW ---
+
 function App() {
   const [scale, setScale] = useState(init_scale);
   const [pos, setPos] = useState(init_pos);
@@ -489,10 +552,23 @@ function App() {
   // Image load effect
   useEffect(() => {
     const img = imgRef.current;
-    if (!img) return;
+    const container = mapContainerRef.current;
+    if (!img || !container) return;
+
     img.onload = () => {
-      setScale(init_scale);
-      setPos(init_pos);
+      const rect = container.getBoundingClientRect();
+      const minScale = getMinScale(img, rect);
+
+      // Center the map at minimum scale
+      const mapWidth = img.naturalWidth * minScale;
+      const mapHeight = img.naturalHeight * minScale;
+      const centerPos = {
+        x: (rect.width - mapWidth) / 2,
+        y: (rect.height - mapHeight) / 2
+      };
+
+      setScale(minScale);
+      setPos(centerPos);
     };
   }, []); // Empty dependency array
 
@@ -590,11 +666,14 @@ function App() {
     const imgX = normalizedX * img.naturalWidth;
     const imgY = (1 - normalizedZ) * img.naturalHeight;
 
-    const { width, height } = mapContainerRef.current.getBoundingClientRect();
-    const centerX = width / 2;
-    const centerY = height / 2;
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
 
-    setPos({ x: centerX - imgX * scale, y: centerY - imgY * scale });
+    const newPos = { x: centerX - imgX * scale, y: centerY - imgY * scale };
+    const clampedPos = clampPosition(scale, newPos, img, rect);
+
+    setPos(clampedPos);
   }, [trackedShip, ships, scale]);
 
   // Effect to update arrows on mount
@@ -609,12 +688,19 @@ function App() {
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      const newScale = Math.min(Math.max(scale + delta, 0.001), 5);
+
+      // Calculate minimum scale to fit entire map
+      const minScale = getMinScale(imgRef.current, rect);
+      const newScale = Math.min(Math.max(scale + delta, minScale), 5);
       const scaleFactor = newScale / scale;
       const newX = mouseX - (mouseX - pos.x) * scaleFactor;
       const newY = mouseY - (mouseY - pos.y) * scaleFactor;
+
+      // Apply boundary constraints
+      const clampedPos = clampPosition(newScale, { x: newX, y: newY }, imgRef.current, rect);
+
       setScale(newScale);
-      setPos({ x: newX, y: newY });
+      setPos(clampedPos);
 
       clearTimeout(wheelDebounceTimer.current);
       wheelDebounceTimer.current = setTimeout(() => {
@@ -657,7 +743,9 @@ function App() {
     }
 
     if (dragging) {
-      setPos({ x: e.clientX - start.x, y: e.clientY - start.y });
+      const newPos = { x: e.clientX - start.x, y: e.clientY - start.y };
+      const clampedPos = clampPosition(scale, newPos, imgRef.current, rect);
+      setPos(clampedPos);
     }
   };
 
@@ -702,9 +790,22 @@ function App() {
 
   const resetView = () => {
     const img = imgRef.current;
-    if (!img) return;
-    setScale(init_scale);
-    setPos(init_pos);
+    const container = mapContainerRef.current;
+    if (!img || !container) return;
+
+    const rect = container.getBoundingClientRect();
+    const minScale = getMinScale(img, rect);
+
+    // Center the map at minimum scale
+    const mapWidth = img.naturalWidth * minScale;
+    const mapHeight = img.naturalHeight * minScale;
+    const centerPos = {
+      x: (rect.width - mapWidth) / 2,
+      y: (rect.height - mapHeight) / 2
+    };
+
+    setScale(minScale);
+    setPos(centerPos);
     setDragging(false);
     updateCurrent();
   };
