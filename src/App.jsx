@@ -27,6 +27,7 @@ import {
 import ShipControlPanel from "./components/ShipControlPanel";
 import ShipDashboard from "./components/ShipDashboard";
 import WaypointPanel from "./components/WaypointPanel";
+import PictureInPicture from "./components/PictureInPicture";
 
 
 const init_scale = 1.0;
@@ -1156,6 +1157,14 @@ function App() {
           addWaypoint={addWaypoint}
         />
       )}
+
+      {/* Picture-in-Picture */}
+      <PictureInPicture
+        ships={ships}
+        persons={persons}
+        shipHistories={shipHistories}
+        dashboardSelectedShips={dashboardSelectedShips}
+      />
     </div>
   );
 }

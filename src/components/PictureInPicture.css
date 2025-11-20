@@ -1,0 +1,163 @@
+/* Picture-in-Picture container */
+.pip-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  height: 300px;
+  background-color: rgba(51, 51, 51, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header with ship selector */
+.pip-header {
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pip-header label {
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.pip-header select {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 12px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pip-header select:focus {
+  outline: 2px solid #4CAF50;
+}
+
+/* Viewport for map */
+.pip-viewport {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background-color: #1a1a1a;
+}
+
+.pip-viewport img {
+  position: absolute;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Ship paths SVG */
+.pip-ship-paths {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Ship markers (scaled down) */
+.pip-map-ship {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.pip-ship-icon {
+  width: 32px;
+  height: 32px;
+  background-image: url(../assets/ship-icon_activate.png);
+  background-size: cover;
+  background-position: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.pip-map-ship.pip-ship-waiting .pip-ship-icon {
+  background-image: url(../assets/ship-icon_no_activate.png);
+}
+
+/* Highlight tracked ship */
+.pip-map-ship.pip-ship-tracked .pip-ship-icon {
+  border-color: #4CAF50;
+  border-width: 3px;
+  box-shadow: 0 0 12px rgba(76, 175, 80, 0.8);
+}
+
+.pip-ship-label {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+/* Detection range circle (scaled down) */
+.pip-detection-range {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(76, 175, 80, 0.5);
+  border-radius: 50%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Person markers (scaled down) */
+.pip-map-person {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  pointer-events: none;
+}
+
+.pip-person-icon {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.pip-map-person.pip-person-danger .pip-person-icon {
+  background-color: #F44336;
+}
+
+.pip-map-person.pip-person-saved .pip-person-icon {
+  background-color: #2196F3;
+}
+
+.pip-person-label {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 8px;
+  white-space: nowrap;
+}
