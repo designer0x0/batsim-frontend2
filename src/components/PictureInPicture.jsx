@@ -11,7 +11,6 @@ import "./PictureInPicture.css";
 // PIP window size
 const PIP_WIDTH = 350;
 const PIP_HEIGHT = 300;
-const PIP_SCALE = 2.5; // Fixed zoom level for close-up view
 
 function PictureInPicture({
   ships,
@@ -20,8 +19,17 @@ function PictureInPicture({
   dashboardSelectedShips,
 }) {
   const [pipShip, setPipShip] = useState(""); // Tracked ship name
+  const [pipScale, setPipScale] = useState(2.5); // Zoom level (1.0 to 4.0)
   const [pipPos, setPipPos] = useState({ x: 0, y: 0 });
   const imgRef = useRef(null);
+
+  // Handle mouse wheel for zooming
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.2 : 0.2; // Scroll down = zoom out, scroll up = zoom in
+    const newScale = Math.min(Math.max(pipScale + delta, 1.0), 4.0);
+    setPipScale(newScale);
+  };
 
   // Auto-center on tracked ship
   useEffect(() => {
@@ -44,8 +52,8 @@ function PictureInPicture({
     const centerX = PIP_WIDTH / 2;
     const centerY = PIP_HEIGHT / 2;
 
-    setPipPos({ x: centerX - imgX * PIP_SCALE, y: centerY - imgY * PIP_SCALE });
-  }, [pipShip, ships]);
+    setPipPos({ x: centerX - imgX * pipScale, y: centerY - imgY * pipScale });
+  }, [pipShip, ships, pipScale]);
 
   return (
     <div className="pip-container">
@@ -63,10 +71,13 @@ function PictureInPicture({
             </option>
           ))}
         </select>
+        <span className="pip-zoom-indicator">
+          {pipScale.toFixed(1)}x
+        </span>
       </div>
 
       {/* Map viewport */}
-      <div className="pip-viewport">
+      <div className="pip-viewport" onWheel={handleWheel}>
         {/* SVG layer for ship paths */}
         <svg
           className="pip-ship-paths"
@@ -86,7 +97,7 @@ function PictureInPicture({
 
             const points = history
               .map((pt) => {
-                const { x, y } = mapToScreen(pt.x, pt.z, imgRef.current, PIP_SCALE, pipPos);
+                const { x, y } = mapToScreen(pt.x, pt.z, imgRef.current, pipScale, pipPos);
                 return `${x},${y}`;
               })
               .join(" ");
@@ -112,7 +123,7 @@ function PictureInPicture({
           src="/map.png"
           alt="map"
           style={{
-            transform: `translate(${pipPos.x}px, ${pipPos.y}px) scale(${PIP_SCALE})`,
+            transform: `translate(${pipPos.x}px, ${pipPos.y}px) scale(${pipScale})`,
             transformOrigin: "0 0",
             userSelect: "none",
             pointerEvents: "none",
@@ -126,7 +137,7 @@ function PictureInPicture({
             ship.position.x,
             ship.position.z,
             imgRef.current,
-            PIP_SCALE,
+            pipScale,
             pipPos
           );
 
@@ -144,8 +155,8 @@ function PictureInPicture({
                   style={{
                     left: `${x}px`,
                     top: `${y}px`,
-                    width: `${ship.detectionRange * PIP_SCALE * 2}px`,
-                    height: `${ship.detectionRange * PIP_SCALE * 2}px`,
+                    width: `${ship.detectionRange * pipScale * 2}px`,
+                    height: `${ship.detectionRange * pipScale * 2}px`,
                   }}
                 />
               )}
@@ -171,7 +182,7 @@ function PictureInPicture({
             person.position.x,
             person.position.z,
             imgRef.current,
-            PIP_SCALE,
+            pipScale,
             pipPos
           );
 
