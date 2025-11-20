@@ -129,6 +129,8 @@ export const getCurrentDataInRange = async (
   // 2. Get the raw data grids (full CSVs) from the cached object
   const rawSpeedGrid = fullData.speedGrid;
   const rawDirectionGrid = fullData.directionGrid;
+  // 2a. metadata parsed from the fetched file
+  const metadata = fullData.metadata || {};
 
   // 3. (鑒) Delete the first three horizontal rows (per user request)
   const baseSpeedGrid = rawSpeedGrid.slice(3);
@@ -204,6 +206,17 @@ export const getCurrentDataInRange = async (
   );
   console.log(`Returning ${finalFilteredSpeed.length} rows.`);
 
-  // (鑒) Return both filtered grids as an object
-  return { speed: finalFilteredSpeed, direction: finalFilteredDirection };
+  // (鑒) Return both filtered grids and helpful metadata for mapping indices -> lat/lon
+  return {
+    speed: finalFilteredSpeed,
+    direction: finalFilteredDirection,
+    // full base grid dimensions (after removing CSV header rows)
+    baseHeight: height,
+    baseWidth: width,
+    // the safe min row/col in the base grid that correspond to the sliced output
+    safeMinRow,
+    safeMinCol,
+    // original metadata (lat/lon extents)
+    metadata,
+  };
 };

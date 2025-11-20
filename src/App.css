@@ -241,6 +241,9 @@ html,
   /* 確保點擊事件穿透到地圖 */
   pointer-events: none;
 
+  /* display layer so arrows are visible but below ship markers */
+  z-index: 8;
+
   /* 箭頭和文字的容器 */
   display: flex;
   flex-direction: column;
@@ -248,12 +251,14 @@ html,
 
   /* (重要) transform-origin 在旋轉時保持置中 */
   transform-origin: center;
+  /* 把 left/top 視為元素中心點 */
+  transform: translate(-50%, -50%);
 }
 
 .current-arrow-icon {
   font-size: 18px;
   /* 箭頭大小 */
-  color: #00f;
+  color: #f7f7f7;
   /* 箭頭顏色 (藍色) */
   line-height: 1;
 }
@@ -267,6 +272,46 @@ html,
   border-radius: 2px;
   white-space: nowrap;
   /* 防止文字換行 */
+}
+
+/* Animation for the small moving arrows
+   - The outer element is positioned by left/top (treated as the element center)
+   - The inner `.current-arrow-inner` is animated via CSS vars:
+     `--to1x/--to1y/--to2x/--to2y` which are offsets (in px) from that start point
+   - `--rot` controls the rotation so the arrow faces the correct direction
+   - Opacity curve: 0% -> 20% (fade to 100%), stays 100% until 80%, then fades to 0% at 100%
+*/
+.current-arrow .current-arrow-inner {
+  animation-name: currentMove;
+  animation-duration: var(--dur, 2.5s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  /* center icon and label */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes currentMove {
+  0% {
+    transform: translate(0px, 0px) rotate(var(--rot, 0deg));
+    opacity: 0;
+  }
+  20% {
+    transform: translate(var(--to1x, 0px), var(--to1y, 0px)) rotate(var(--rot, 0deg));
+    opacity: 1;
+  }
+  /* move continuously from centre (1/5) to near-end (4/5) */
+  80% {
+    transform: translate(var(--to3x, 0px), var(--to3y, 0px)) rotate(var(--rot, 0deg));
+    opacity: 1;
+  }
+  100% {
+    /* stay at end position but fade out */
+    transform: translate(var(--to3x, 0px), var(--to3y, 0px)) rotate(var(--rot, 0deg));
+    opacity: 0;
+  }
 }
 
 /* --- (鑒) END NEW CSS --- */

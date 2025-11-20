@@ -166,44 +166,83 @@ function App() {
         return;
       }
 
-      // (鑒) 採樣：每 200 像素取一個點 (Sample: pick one point every 200 pixels)
-      // (你可以調整這個值來改變密度)
-      const PIXEL_STEP = 200;
+        // 改為以資料格子為基準採樣，並把每個格點轉為經緯度 -> Unity -> 畫面座標
+        // 我們從 getCurrentDataInRange 取得的物件會包含 baseHeight/baseWidth 與 safeMinRow/safeMinCol
+        const { speed: fSpeed, direction: fDir, baseHeight, baseWidth, safeMinRow, safeMinCol, metadata } = filteredData;
 
-      // (鑒) 從 (STEP/2) 開始循環，使箭頭網格在螢幕上居中
-      for (let y = PIXEL_STEP / 2; y < screenHeight; y += PIXEL_STEP) {
-        for (let x = PIXEL_STEP / 2; x < screenWidth; x += PIXEL_STEP) {
-          try {
-            // 1. (NEW) 將 "螢幕" 像素 (x, y) 映射到 "資料" 索引 (r, c)
-            // e.g., screen y (0 to screenHeight) -> grid r (0 to gridHeight-1)
-            // e.g., screen x (0 to screenWidth) -> grid c (0 to gridWidth-1)
-            const r_float = (y / screenHeight) * (gridHeight - 1);
-            const c_float = (x / screenWidth) * (gridWidth - 1);
+        if (!fSpeed || fSpeed.length === 0) {
+          setCurrentArrows([]);
+          return;
+        }
 
-            // 取得最近的整數索引
-            const r = Math.round(r_float);
-            const c = Math.round(c_float);
+        // Parse metadata safely; if metadata is missing or invalid, fall back to known bounds
+        let latMin = metadata ? parseFloat(metadata.lat_min) : NaN;
+        let latMax = metadata ? parseFloat(metadata.lat_max) : NaN;
+        let lonMin = metadata ? parseFloat(metadata.lon_min) : NaN;
+        let lonMax = metadata ? parseFloat(metadata.lon_max) : NaN;
 
-            // 2. Get speed and direction data from the grid
-            const speed = parseFloat(speedGrid[r][c]).toFixed(1);
-            const dir = parseFloat(directionGrid[r][c]).toFixed(0);
+        if (!isFinite(latMin) || !isFinite(latMax) || !isFinite(lonMin) || !isFinite(lonMax)) {
+          // Fallback to the constants exported from conversions
+          console.warn("Current metadata missing or invalid — falling back to map LAT/LON bounds");
+          latMin = LAT_MIN;
+          latMax = LAT_MAX;
+          lonMin = LON_MIN;
+          lonMax = LON_MAX;
+        }
 
-            // 3. (NEW) 儲存 "螢幕" 座標 (x, y)
-            newArrows.push({
-              id: `c_${x}_${y}`,
-              x: x, // (鑒) 儲存螢幕 X 座標
-              y: y, // (鑒) 儲存螢幕 Y 座標
-              speed,
-              dir,
-            });
-          } catch (e) {
-            // (e.g., if grid is not fully formed)
-            console.error("Error processing grid cell:", r, c, e);
+        const gridH = fSpeed.length; // sliced height
+        const gridW = fSpeed[0].length; // sliced width
+
+        // Determine sampling step to limit number of arrows (try to keep ~20 per dimension)
+        const TARGET = 20;
+        const rowStep = Math.max(1, Math.floor(gridH / TARGET));
+        const colStep = Math.max(1, Math.floor(gridW / TARGET));
+
+        for (let r = 0; r < gridH; r += rowStep) {
+          for (let c = 0; c < gridW; c += colStep) {
+            try {
+              const speedVal = parseFloat(fSpeed[r][c]);
+              const dirVal = parseFloat(fDir[r][c]);
+
+              // Skip invalid cells
+              if (!isFinite(speedVal) || !isFinite(dirVal)) {
+                continue;
+              }
+
+              // global row/col in the base grid (before slicing)
+              const globalRow = safeMinRow + r;
+              const globalCol = safeMinCol + c;
+
+              // baseHeight and baseWidth refer to the full base grid dims
+              const lat = latMax - (globalRow / (baseHeight - 1)) * (latMax - latMin);
+              const lon = lonMin + (globalCol / (baseWidth - 1)) * (lonMax - lonMin);
+
+              // Convert lat/lon -> unity/map coords
+              const normalizedX = (lon - LON_MIN) / (LON_MAX - LON_MIN);
+              const normalizedY = (LAT_MAX - lat) / (LAT_MAX - LAT_MIN); // image Y normalized
+              const normalizedZ = 1 - normalizedY;
+              const unityX = MAP_MIN_X + normalizedX * (MAP_MAX_X - MAP_MIN_X);
+              const unityZ = MAP_MIN_Z + normalizedZ * (MAP_MAX_Z - MAP_MIN_Z);
+
+              newArrows.push({
+                id: `g_${globalRow}_${globalCol}`,
+                unityX,
+                unityZ,
+                speed: Number.isFinite(speedVal) ? speedVal.toFixed(1) : String(speedVal),
+                dir: Number.isFinite(dirVal) ? Math.round(dirVal) : 0,
+                lat,
+                lon,
+                // per-arrow animation offset (seconds) to stagger animations
+                animOffset: Math.random() * 2.5,
+              });
+            } catch (e) {
+              console.error("Error processing grid cell (world):", r, c, e);
+            }
           }
         }
-      }
-      console.log(`Setting ${newArrows.length} current arrows (喜)`);
-      setCurrentArrows(newArrows);
+
+        console.log(`Setting ${newArrows.length} current arrows (world-anchored)`);
+        setCurrentArrows(newArrows);
     } else {
       // No data, clear arrows
       setCurrentArrows([]);
@@ -839,30 +878,66 @@ function App() {
 
         {/* --- (鑒) MODIFIED: Ocean Current Arrows --- */}
         {currentArrows.map((arrow) => {
-          // (鑒) 
-          // 我們不再需要 mapToScreen！
-          // 箭頭現在使用在 updateCurrent 中計算的
-          // "螢幕" 像素座標 (arrow.x, arrow.y)。
-          //
-          // 這會讓箭頭 "釘" 在螢幕上，
-          // 當地圖平移/縮放時，箭頭會保持在原位，
-          // 直到 updateCurrent 完成後，它們的 "數值" (speed/dir) 才會更新。
-          //
+          // Convert world coords to screen each render so arrows move with map
+          if (!imgRef.current) return null;
+          const { x: centerX, y: centerY } = mapToScreen(
+            arrow.unityX,
+            arrow.unityZ,
+            imgRef.current,
+            scale,
+            pos
+          );
+
+          // direction (degrees) -> forward unit vector in screen coords
+          const rad = (arrow.dir * Math.PI) / 180.0;
+          const vx = Math.sin(rad); // x component
+          const vy = -Math.cos(rad); // y component (screen y grows downwards)
+
+          // distances in pixels (scale somewhat with zoom so arrows feel consistent)
+          const scaleFactor = Math.max(1, scale);
+          const backDist = 12 * scaleFactor; // start behind the center point
+          const forwardDist = 24 * scaleFactor; // how far forward the arrow travels
+
+          // compute absolute start point (behind the data point)
+          const startX = centerX - vx * backDist;
+          const startY = centerY - vy * backDist;
+
+          // offsets from start point to center and end
+          const to1x = vx * backDist; // to center
+          const to1y = vy * backDist;
+          const to3x = vx * (backDist + forwardDist); // to end
+          const to3y = vy * (backDist + forwardDist);
+
+          // Slightly earlier pause region: keep a mid-stop (we use to2 same as to1 to create flat region)
+          const to2x = to1x;
+          const to2y = to1y;
+
+          const animDelay = arrow.animOffset ? `-${arrow.animOffset}s` : `-0s`;
+
           return (
             <div
               key={arrow.id}
               className="current-arrow"
               style={{
-                // (鑒) 直接使用 arrow.x 和 arrow.y
-                left: `${arrow.x}px`,
-                top: `${arrow.y}px`,
-                // (鑒) 旋轉箭頭以匹配方向
-                transform: `translate(-50%, -50%) rotate(${arrow.dir}deg)`,
+                left: `${startX}px`,
+                top: `${startY}px`,
+                // CSS vars used by keyframes (set on outer so inner can reference them)
+                ["--to1x"]: `${to1x}px`,
+                ["--to1y"]: `${to1y}px`,
+                ["--to2x"]: `${to2x}px`,
+                ["--to2y"]: `${to2y}px`,
+                ["--to3x"]: `${to3x}px`,
+                ["--to3y"]: `${to3y}px`,
+                ["--rot"]: `${arrow.dir}deg`,
+                ["--dur"]: `2.5s`,
               }}
             >
-              <div className="current-arrow-icon">↑</div> {/* 簡單的箭頭 */}
-              <div className="current-arrow-label">
-                {arrow.speed} {/* 顯示速度 */}
+              <div
+                className="current-arrow-inner"
+                style={{ animationDelay: animDelay }}
+              >
+                <div className="current-arrow-icon">↑</div>
+                <div className="current-arrow-label">{arrow.speed}</div>
               </div>
             </div>
           );
