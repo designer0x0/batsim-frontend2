@@ -274,6 +274,11 @@ html,
   /* 防止文字換行 */
 }
 
+/* Hide the numeric label behind arrows when the user doesn't want it */
+.current-arrow-label {
+  display: none !important;
+}
+
 /* Animation for the small moving arrows
    - The outer element is positioned by left/top (treated as the element center)
    - The inner `.current-arrow-inner` is animated via CSS vars:
