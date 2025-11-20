@@ -1,4 +1,6 @@
-body, html, #root {
+body,
+html,
+#root {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -28,9 +30,10 @@ body, html, #root {
 .menu-button {
   position: fixed !important;
   top: 16px;
-  right: 16px; /* 將按鈕移動到右側 */
+  right: 16px;
+  /* 將按鈕移動到右側 */
   font-size: 28px;
-  width: auto; 
+  width: auto;
   background-color: rgba(51, 51, 51, 0.9);
   color: white;
   border: none;
@@ -48,19 +51,23 @@ body, html, #root {
 .side-menu {
   position: fixed;
   top: 0;
-  right: 0; /* 改為固定在右側 */
+  right: 0;
+  /* 改為固定在右側 */
   height: 100%;
   width: 300px;
   background-color: rgba(51, 51, 51, 0.95);
-  transform: translateX(100%); /* 初始隱藏在右側 */
+  transform: translateX(100%);
+  /* 初始隱藏在右側 */
   transition: transform 0.3s ease;
   z-index: 90;
   padding: 20px;
-  box-shadow: -3px 0 6px rgba(0, 0, 0, 0.3); /* 陰影改為左側 */
+  box-shadow: -3px 0 6px rgba(0, 0, 0, 0.3);
+  /* 陰影改為左側 */
 }
 
 .side-menu.open {
-  transform: translateX(0); /* 顯示選單 */
+  transform: translateX(0);
+  /* 顯示選單 */
 }
 
 .side-menu h2 {
@@ -106,12 +113,15 @@ body, html, #root {
   gap: 6px;
 }
 
-.accordion-content button, .accordion-content select, .accordion-content textarea {
+.accordion-content button,
+.accordion-content select,
+.accordion-content textarea {
   width: 100%;
 }
 
 .title-box {
-  position: fixed;       /* 固定在視窗 */
+  position: fixed;
+  /* 固定在視窗 */
   top: 16px;
   left: 16px;
   background-color: white;
@@ -120,8 +130,9 @@ body, html, #root {
   font-size: 18px;
   padding: 8px 12px;
   border-radius: 6px;
-  z-index: 110;          /* 確保比選單按鈕還高 */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  z-index: 110;
+  /* 確保比選單按鈕還高 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 
@@ -135,7 +146,7 @@ body, html, #root {
   padding: 6px 10px;
   border-radius: 6px;
   z-index: 120;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   line-height: 1.3em;
   user-select: none;
 }
@@ -149,21 +160,23 @@ body, html, #root {
 }
 
 .ship-icon {
-  width: 16px;
-  height: 16px;
-  background-color: #4CAF50;
+  width: 48px;
+  height: 48px;
+  background-image: url(./assets/ship-icon_activate.png);
+  background-size: cover;
+  background-position: center;
   border: 2px solid #fff;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .map-ship.ship-waiting .ship-icon {
-  background-color: #FF9800;
+  background-image: url(./assets/ship-icon_no_activate.png);
 }
 
 .ship-label {
   position: absolute;
-  top: 20px;
+  top: 45px;
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(0, 0, 0, 0.7);
@@ -227,35 +240,41 @@ body, html, #root {
   position: absolute;
   /* 確保點擊事件穿透到地圖 */
   pointer-events: none;
-  
+
   /* 箭頭和文字的容器 */
   display: flex;
   flex-direction: column;
   align-items: center;
-  
+
   /* (重要) transform-origin 在旋轉時保持置中 */
   transform-origin: center;
 }
 
 .current-arrow-icon {
-  font-size: 18px; /* 箭頭大小 */
-  color: #00f;    /* 箭頭顏色 (藍色) */
+  font-size: 18px;
+  /* 箭頭大小 */
+  color: #00f;
+  /* 箭頭顏色 (藍色) */
   line-height: 1;
 }
 
 .current-arrow-label {
   font-size: 10px;
   color: #000;
-  background-color: rgba(255, 255, 255, 0.5); /* 半透明背景 */
+  background-color: rgba(255, 255, 255, 0.5);
+  /* 半透明背景 */
   padding: 0 2px;
   border-radius: 2px;
-  white-space: nowrap; /* 防止文字換行 */
+  white-space: nowrap;
+  /* 防止文字換行 */
 }
 
 /* --- (鑒) END NEW CSS --- */
 
 /* Added gray divider between side-menu options */
 .side-menu .divider {
-  border-bottom: 1px solid #555; /* Gray line */
-  margin: 10px 0; /* Add spacing */
+  border-bottom: 1px solid #555;
+  /* Gray line */
+  margin: 10px 0;
+  /* Add spacing */
 }
