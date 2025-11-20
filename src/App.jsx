@@ -17,6 +17,7 @@ import {
   LON_MAX,
 } from "./utils/conversions"; // (鑒) 假設 conversions.js 匯出這些
 import { getCurrentDataInRange } from "./utils/current";
+import { getShipColor } from "./utils/shipColors";
 import { api } from "./services/api";
 import SystemControlPanel from "./components/SystemControlPanel";
 import {
@@ -713,7 +714,7 @@ function App() {
                 key={`path_${name}`}
                 points={points}
                 fill="none"
-                stroke="#fff"
+                stroke={getShipColor(name, ships)}
                 strokeWidth={2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -767,7 +768,12 @@ function App() {
                 }}
               >
                 <div className="ship-icon"></div>
-                <div className="ship-label">{ship.name}</div>
+                <div
+                  className="ship-label"
+                  style={{ backgroundColor: getShipColor(ship.name, ships) }}
+                >
+                  {ship.name}
+                </div>
               </div>
             </div>
           );

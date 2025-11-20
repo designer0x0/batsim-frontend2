@@ -6,6 +6,7 @@ import {
   MAP_MIN_Z,
   MAP_MAX_Z,
 } from "../utils/conversions";
+import { getShipColor } from "../utils/shipColors";
 import "./PictureInPicture.css";
 
 // PIP window size
@@ -107,7 +108,7 @@ function PictureInPicture({
                 key={`pip_path_${name}`}
                 points={points}
                 fill="none"
-                stroke="#fff"
+                stroke={getShipColor(name, ships)}
                 strokeWidth={2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -169,7 +170,12 @@ function PictureInPicture({
                 }}
               >
                 <div className="pip-ship-icon"></div>
-                <div className="pip-ship-label">{ship.name}</div>
+                <div
+                  className="pip-ship-label"
+                  style={{ backgroundColor: getShipColor(ship.name, ships) }}
+                >
+                  {ship.name}
+                </div>
               </div>
             </div>
           );
