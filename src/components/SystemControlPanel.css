@@ -103,3 +103,71 @@
   border-bottom: 1px solid white;
   margin: 10px 0; /* Add spacing */
 }
+
+/* --- Ship Dashboard Styles --- */
+
+/* Ship item container */
+.ship-item {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  margin-bottom: 8px;
+}
+
+.ship-item:last-child {
+  border-bottom: none;
+}
+
+/* Ship name */
+.ship-name {
+  font-weight: bold;
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+/* Ship info rows (status, coordinates) */
+.ship-info {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+/* Ship status */
+.ship-status {
+  display: inline;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.ship-status.status-active {
+  color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.15);
+}
+
+.ship-status.status-waiting {
+  color: #999;
+  background-color: rgba(150, 150, 150, 0.15);
+}
+
+/* Checkbox label */
+.ship-checkbox-label {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #ddd;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ship-checkbox-label input[type="checkbox"] {
+  margin-right: 6px;
+  cursor: pointer;
+}
+
+.ship-checkbox-label span {
+  cursor: pointer;
+}

@@ -113,6 +113,26 @@ export const screenToUnity = (mouseX, mouseY, img, scale, pos) => {
   return null;
 };
 
+/**
+ * Converts Unity world coordinates (X, Z) directly to Latitude/Longitude.
+ * @param {number} unityX - Unity X coordinate.
+ * @param {number} unityZ - Unity Z coordinate.
+ * @returns {{lat: number, lon: number}} - Lat/Lon object.
+ */
+export const unityToLatLon = (unityX, unityZ) => {
+  // Normalize Unity coordinates to 0-1 range
+  const normalizedX = (unityX - MAP_MIN_X) / (MAP_MAX_X - MAP_MIN_X);
+  const normalizedZ = (unityZ - MAP_MIN_Z) / (MAP_MAX_Z - MAP_MIN_Z);
+
+  // Convert to longitude (X axis maps directly to longitude)
+  const lon = LON_MIN + normalizedX * (LON_MAX - LON_MIN);
+
+  // Convert to latitude (Z axis is inverted: Unity Z up -> Latitude up)
+  const lat = LAT_MIN + normalizedZ * (LAT_MAX - LAT_MIN);
+
+  return { lat, lon };
+};
+
 const ORIGIN_LON = 109.0;
 // 緯度 (Row) 的原點 (我們假設 0 在最北邊)
 const ORIGIN_LAT_MAX = 39.0;
