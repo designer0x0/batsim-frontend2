@@ -25,6 +25,7 @@ import {
   buildRescueRoute,
 } from "./utils/rescueUtils";
 import ShipControlPanel from "./components/ShipControlPanel";
+import ShipDashboard from "./components/ShipDashboard";
 import WaypointPanel from "./components/WaypointPanel";
 
 
@@ -77,6 +78,8 @@ function App() {
   // Saved routes states
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState("");
+  const [dashboardSelectedShips, setDashboardSelectedShips] = useState([]); // names to show paths for
+  const [shipHistories, setShipHistories] = useState({}); // { [shipName]: [{x,z}, ...] }
   // Spawn persons states
   const [spawnMode, setSpawnMode] = useState(false);
   const [spawnCenter, setSpawnCenter] = useState(null);
@@ -233,6 +236,9 @@ function App() {
       await api.reset();
       console.log("Simulation reset successfully");
       setWaypoints([]);
+      // 清空儀表板選中的路徑與所有船隻歷史軌跡
+      setDashboardSelectedShips([]);
+      setShipHistories({});
       await fetchState(); // fetchState will get the new current status
     } catch (error) {
       console.error(`重置模擬失敗: ${error.message}`);
@@ -485,6 +491,44 @@ function App() {
     }
   }, [ships, selectedShipCommand, selectedShipWaypoint]);
 
+  // Keep previous ships to detect start/stop transitions
+  const prevShipsRef = useRef([]);
+
+  // Update ship histories whenever ships update
+  useEffect(() => {
+    const prevShips = prevShipsRef.current || [];
+    setShipHistories((currentHistories) => {
+      const newHistories = { ...currentHistories };
+
+      ships.forEach((ship) => {
+        const prev = prevShips.find((p) => p.name === ship.name);
+        const isActive = !ship.isWaiting; // treat not-waiting as active/started
+
+        // If the ship just transitioned from waiting -> active, reset history
+        if (prev && prev.isWaiting && !ship.isWaiting) {
+          newHistories[ship.name] = [{ x: ship.position.x, z: ship.position.z }];
+        } else if (!prev && isActive) {
+          // newly appeared and active -> start history
+          newHistories[ship.name] = [{ x: ship.position.x, z: ship.position.z }];
+        } else if (isActive) {
+          // append current position
+          const arr = newHistories[ship.name] ? [...newHistories[ship.name]] : [];
+          // Only append if last point is different to avoid duplicates
+          const last = arr[arr.length - 1];
+          if (!last || last.x !== ship.position.x || last.z !== ship.position.z) {
+            arr.push({ x: ship.position.x, z: ship.position.z });
+          }
+          newHistories[ship.name] = arr;
+        }
+        // If ship became waiting again, don't append further (but keep history)
+      });
+
+      return newHistories;
+    });
+
+    prevShipsRef.current = ships;
+  }, [ships]);
+
   // Sync state to ref
   useEffect(() => {
     viewStateRef.current = { scale, pos };
@@ -639,6 +683,44 @@ function App() {
         onClick={handleMapClick}
         style={{ cursor: (isRecording || spawnMode) ? "crosshair" : "default" }}
       >
+        {/* SVG layer for ship paths (screen coordinates) */}
+        <svg
+          className="ship-paths"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            zIndex: 2, // ensure svg is above the map image but below markers
+          }}
+        >
+          {dashboardSelectedShips.map((name) => {
+            const history = shipHistories[name] || [];
+            if (!imgRef.current || history.length < 2) return null;
+
+            const points = history
+              .map((pt) => {
+                const { x, y } = mapToScreen(pt.x, pt.z, imgRef.current, scale, pos);
+                return `${x},${y}`;
+              })
+              .join(" ");
+
+            return (
+              <polyline
+                key={`path_${name}`}
+                points={points}
+                fill="none"
+                stroke="#fff"
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity={0.95}
+              />
+            );
+          })}
+        </svg>
         <img
           ref={imgRef}
           src="/map.png"
@@ -809,6 +891,14 @@ function App() {
             船隻控制
           </div>
           <div className="divider"></div> {/* Divider */}
+        </div>
+
+        {/* Ship Dashboard */}
+        <div>
+          <div className="accordion-title" onClick={() => setOpenPanel("dashboard")}>
+            船隻儀錶板
+          </div>
+          <div className="divider"></div>
         </div>
 
         {/* Waypoint Recording */}
@@ -1041,6 +1131,16 @@ function App() {
           selectedShipCommand={selectedShipCommand}
           setSelectedShipCommand={setSelectedShipCommand}
           sendShipCommand={sendShipCommand}
+        />
+      )}
+
+      {openPanel === "dashboard" && (
+        <ShipDashboard
+          onClose={() => setOpenPanel(null)}
+          ships={ships}
+          selected={dashboardSelectedShips}
+          setSelected={setDashboardSelectedShips}
+          shipHistories={shipHistories}
         />
       )}
 
