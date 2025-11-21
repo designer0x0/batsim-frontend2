@@ -157,6 +157,10 @@ function App() {
 
   // --- (鑒) NEW: State for ocean current arrows ---
   const [currentArrows, setCurrentArrows] = useState([]);
+  // full sliced grid data for interpolation (from getCurrentDataInRange)
+  const [currentGrid, setCurrentGrid] = useState(null);
+  // transient flow particles that are spawned every interval and animated
+  const [flowParticles, setFlowParticles] = useState([]);
   // --- (鑒) END NEW ---
 
   // --- NEW: updateCurrent function (as requested) ---
@@ -308,6 +312,12 @@ function App() {
 
         console.log(`Setting ${newArrows.length} current arrows (world-anchored)`);
         setCurrentArrows(newArrows);
+        // store the filtered grid so we can interpolate inside cells for flow particles
+        try {
+          setCurrentGrid(filteredData);
+        } catch (e) {
+          setCurrentGrid(null);
+        }
     } else {
       // No data, clear arrows
       setCurrentArrows([]);
@@ -681,6 +691,140 @@ function App() {
     updateCurrent();
   }, [updateCurrent]); // This now only runs once on mount
 
+  // Spawn flow particles periodically inside each data-cell rectangle.
+  useEffect(() => {
+    if (!currentGrid || !imgRef.current) return;
+
+    const INTERVAL_MS = 200; // spawn every 0.5s
+    const ANIM_DURATION_MS = 2500; // keep particles this long (match CSS duration)
+
+    const spawnTimer = setInterval(() => {
+      const grid = currentGrid;
+      if (!grid || !grid.speed || grid.speed.length < 2) return;
+
+      const sGrid = grid.speed; // 2D array
+      const dGrid = grid.direction; // 2D array
+      const gridH = sGrid.length;
+      const gridW = sGrid[0].length;
+      if (gridH < 2 || gridW < 2) return;
+
+      // sampling step to limit number of particles (aim ~20 per dim)
+      const TARGET = 20;
+      const rowStep = Math.max(1, Math.floor((gridH - 1) / TARGET));
+      const colStep = Math.max(1, Math.floor((gridW - 1) / TARGET));
+
+      // metadata for converting to lat/lon
+      const metadata = grid.metadata || {};
+      let latMin = metadata ? parseFloat(metadata.lat_min) : NaN;
+      let latMax = metadata ? parseFloat(metadata.lat_max) : NaN;
+      let lonMin = metadata ? parseFloat(metadata.lon_min) : NaN;
+      let lonMax = metadata ? parseFloat(metadata.lon_max) : NaN;
+      if (!isFinite(latMin) || !isFinite(latMax) || !isFinite(lonMin) || !isFinite(lonMax)) {
+        latMin = LAT_MIN;
+        latMax = LAT_MAX;
+        lonMin = LON_MIN;
+        lonMax = LON_MAX;
+      }
+
+      const baseH = grid.baseHeight;
+      const baseW = grid.baseWidth;
+      const safeMinRow = grid.safeMinRow || 0;
+      const safeMinCol = grid.safeMinCol || 0;
+
+      const newParticles = [];
+      const now = Date.now();
+
+      // helper: convert grid fractional global indices -> lat/lon -> unity coords
+      const idxToLatLon = (globalRow, globalCol) => {
+        const lat = latMax - (globalRow / (baseH - 1)) * (latMax - latMin);
+        const lon = lonMin + (globalCol / (baseW - 1)) * (lonMax - lonMin);
+        return { lat, lon };
+      };
+
+      // Loop cells (each cell is formed by [r,c] to [r+1,c+1])
+      for (let r = 0; r < gridH - 1; r += rowStep) {
+        for (let c = 0; c < gridW - 1; c += colStep) {
+          // pick a random point inside the cell (u across columns, v across rows)
+          const u = Math.random();
+          const v = Math.random();
+
+          // obtain corner indices in the sliced grid
+          const i0 = r;
+          const i1 = r + 1;
+          const j0 = c;
+          const j1 = c + 1;
+
+          // read corner speeds and directions (parse floats)
+          const s00 = parseFloat(sGrid[i0][j0]) || 0;
+          const s10 = parseFloat(sGrid[i1][j0]) || 0;
+          const s01 = parseFloat(sGrid[i0][j1]) || 0;
+          const s11 = parseFloat(sGrid[i1][j1]) || 0;
+
+          const d00 = parseFloat(dGrid[i0][j0]) || 0;
+          const d10 = parseFloat(dGrid[i1][j0]) || 0;
+          const d01 = parseFloat(dGrid[i0][j1]) || 0;
+          const d11 = parseFloat(dGrid[i1][j1]) || 0;
+
+          // convert each corner to vector components (vx, vy in screen-like coords)
+          const cornerVec = (s, d) => {
+            const rad = (d * Math.PI) / 180.0;
+            // vx = sin(rad) * speed, vy = -cos(rad) * speed  (same basis as render code)
+            return { x: Math.sin(rad) * s, y: -Math.cos(rad) * s };
+          };
+
+          const v00 = cornerVec(s00, d00);
+          const v10 = cornerVec(s10, d10);
+          const v01 = cornerVec(s01, d01);
+          const v11 = cornerVec(s11, d11);
+
+          // bilinear interpolation weights
+          const w00 = (1 - u) * (1 - v);
+          const w10 = (1 - u) * v;
+          const w01 = u * (1 - v);
+          const w11 = u * v;
+
+          const vx = v00.x * w00 + v10.x * w10 + v01.x * w01 + v11.x * w11;
+          const vy = v00.y * w00 + v10.y * w10 + v01.y * w01 + v11.y * w11;
+
+          // compute interpolated speed and direction
+          const interpSpeed = Math.hypot(vx, vy);
+          const interpRad = Math.atan2(vx, -vy); // invert to match earlier convention
+          const interpDir = (interpRad * 180) / Math.PI;
+
+          // compute fractional global indices (rows/cols relative to base grid)
+          const globalRow = safeMinRow + r + v;
+          const globalCol = safeMinCol + c + u;
+
+          // convert to lat/lon -> unity coords
+          const { lat, lon } = idxToLatLon(globalRow, globalCol);
+          const normalizedX = (lon - LON_MIN) / (LON_MAX - LON_MIN);
+          const normalizedY = (LAT_MAX - lat) / (LAT_MAX - LAT_MIN);
+          const normalizedZ = 1 - normalizedY;
+          const unityX = MAP_MIN_X + normalizedX * (MAP_MAX_X - MAP_MIN_X);
+          const unityZ = MAP_MIN_Z + normalizedZ * (MAP_MAX_Z - MAP_MIN_Z);
+
+          newParticles.push({
+            id: `p_${r}_${c}_${now}_${Math.floor(u * 1000)}`,
+            unityX,
+            unityZ,
+            dir: interpDir,
+            speed: interpSpeed.toFixed(1),
+            createdAt: now,
+          });
+        }
+      }
+
+      // append and cleanup old particles
+      setFlowParticles((prev) => {
+        const cutoff = Date.now() - ANIM_DURATION_MS;
+        const kept = prev.filter((p) => p.createdAt > cutoff);
+        return [...kept, ...newParticles];
+      });
+    }, INTERVAL_MS);
+
+    return () => clearInterval(spawnTimer);
+  }, [currentGrid, scale, pos]);
+
   const handleWheel = useCallback(
     (e) => {
       e.preventDefault();
@@ -1046,6 +1190,57 @@ function App() {
               >
                 <div className="current-arrow-icon">↑</div>
                 <div className="current-arrow-label">{arrow.speed}</div>
+              </div>
+            </div>
+          );
+        })}
+        {/* Flow particles spawned across the surface */}
+        {flowParticles.map((p) => {
+          if (!imgRef.current) return null;
+          const { x: centerX, y: centerY } = mapToScreen(
+            p.unityX,
+            p.unityZ,
+            imgRef.current,
+            scale,
+            pos
+          );
+
+          const rad = (p.dir * Math.PI) / 180.0;
+          const vx = Math.sin(rad);
+          const vy = -Math.cos(rad);
+          const scaleFactor = Math.max(1, scale);
+          const backDist = 8 * scaleFactor;
+          const forwardDist = 20 * scaleFactor;
+
+          const startX = centerX - vx * backDist;
+          const startY = centerY - vy * backDist;
+
+          const to1x = vx * backDist;
+          const to1y = vy * backDist;
+          const to3x = vx * (backDist + forwardDist);
+          const to3y = vy * (backDist + forwardDist);
+
+          const animDelay = `-0s`;
+
+          return (
+            <div
+              key={p.id}
+              className="current-arrow"
+              style={{
+                left: `${startX}px`,
+                top: `${startY}px`,
+                ["--to1x"]: `${to1x}px`,
+                ["--to1y"]: `${to1y}px`,
+                ["--to2x"]: `${to1x}px`,
+                ["--to2y"]: `${to1y}px`,
+                ["--to3x"]: `${to3x}px`,
+                ["--to3y"]: `${to3y}px`,
+                ["--rot"]: `${p.dir}deg`,
+                ["--dur"]: `2.5s`,
+              }}
+            >
+              <div className="current-arrow-inner" style={{ animationDelay: animDelay }}>
+                <div className="current-arrow-icon">↑</div>
               </div>
             </div>
           );
