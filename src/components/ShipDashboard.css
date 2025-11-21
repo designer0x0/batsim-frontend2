@@ -1,0 +1,102 @@
+/* Styles for the ShipDashboard panel (separate from SystemControlPanel) */
+
+.ship-dashboard {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 110;
+  width: 320px;
+  max-height: 70vh;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: rgba(51, 51, 51, 0.95);
+  color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.ship-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ship-dashboard-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #ffcc00;
+}
+
+.ship-dashboard-content {
+  margin-top: 8px;
+  overflow-y: auto;
+  max-height: calc(70vh - 56px);
+  padding-right: 6px;
+}
+
+.ship-dashboard .divider {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 8px 0;
+}
+
+/* Ship list */
+.ship-dashboard .ship-item {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 6px;
+}
+
+.ship-dashboard .ship-item:last-child {
+  border-bottom: none;
+}
+
+.ship-dashboard .ship-name {
+  font-weight: bold;
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.ship-dashboard .ship-info {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+.ship-dashboard .ship-status {
+  display: inline;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.ship-dashboard .ship-status.status-active {
+  color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.12);
+}
+
+.ship-dashboard .ship-status.status-waiting {
+  color: #999;
+  background-color: rgba(150, 150, 150, 0.08);
+}
+
+.ship-dashboard .ship-checkbox-label {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #ddd;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ship-dashboard .ship-checkbox-label input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+.ship-dashboard .ship-checkbox-label span {
+  cursor: pointer;
+}

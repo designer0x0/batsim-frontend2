@@ -1,6 +1,6 @@
 import React from "react";
 import { unityToLatLon } from "../utils/conversions";
-import "./SystemControlPanel.css";
+import "./ShipDashboard.css";
 
 function ShipDashboard({ onClose, ships = [], selected = [], setSelected = () => {}, shipHistories = {} }) {
   const toggle = (name) => {
@@ -12,13 +12,12 @@ function ShipDashboard({ onClose, ships = [], selected = [], setSelected = () =>
   };
 
   return (
-    <div className="system-panel">
-      <div className="system-panel-header">
+    <div className="ship-dashboard">
+      <div className="ship-dashboard-header">
         <h3>船隻儀錶板</h3>
-        <button className="close-button" onClick={onClose}>✕</button>
       </div>
 
-      <div className="system-panel-content">
+      <div className="ship-dashboard-content">
         <div className="divider"></div>
 
         <div style={{ maxHeight: "400px", overflowY: "auto" }}>

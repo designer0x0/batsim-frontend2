@@ -956,8 +956,14 @@ function App() {
 
   return (
     <div className="app">
-      {/* Top-left title */}
-      <div className="title-box">智慧化 AI 船群搜救模擬系統</div>
+      {/* Top-left: Ship Dashboard (replace title) */}
+      <ShipDashboard
+        onClose={() => {}}
+        ships={ships}
+        selected={dashboardSelectedShips}
+        setSelected={setDashboardSelectedShips}
+        shipHistories={shipHistories}
+      />
 
       {/* Map container as the base layer */}
       <div
@@ -1271,13 +1277,7 @@ function App() {
           <div className="divider"></div> {/* Divider */}
         </div>
 
-        {/* Ship Dashboard */}
-        <div>
-          <div className="accordion-title" onClick={() => setOpenPanel("dashboard")}>
-            船隻儀錶板
-          </div>
-          <div className="divider"></div>
-        </div>
+        {/* Ship Dashboard removed from side-menu; now shown top-left */}
 
         {/* Waypoint Recording */}
         <div>
@@ -1512,15 +1512,7 @@ function App() {
         />
       )}
 
-      {openPanel === "dashboard" && (
-        <ShipDashboard
-          onClose={() => setOpenPanel(null)}
-          ships={ships}
-          selected={dashboardSelectedShips}
-          setSelected={setDashboardSelectedShips}
-          shipHistories={shipHistories}
-        />
-      )}
+      {/* Dashboard is now permanently shown at top-left; removed side-menu toggle */}
 
       {openPanel === "waypoint" && (
         <WaypointPanel
