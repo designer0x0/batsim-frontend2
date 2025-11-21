@@ -25,6 +25,7 @@ function SystemControlPanel({
         <div style={{ marginBottom: "10px" }}>
           <label style={{ display: "block", fontSize: "12px", marginBottom: "4px" }}>視角追蹤</label>
           <select
+            className="pip-select"
             value={trackedShip || ""}
             onChange={(e) => setTrackedShip && setTrackedShip(e.target.value || "")}
             style={{ width: "100%" }}

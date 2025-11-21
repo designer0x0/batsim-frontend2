@@ -21,6 +21,7 @@ function ShipControlPanel({
 
         <div style={{ marginBottom: "10px" }}>
           <select
+            className="pip-select"
             value={selectedShipCommand}
             onChange={(e) => setSelectedShipCommand(e.target.value)}
           >

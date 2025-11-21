@@ -112,6 +112,20 @@ function clampPosition(scale, pos, img, containerRect) {
 }
 // --- END NEW ---
 
+/**
+ * Convert Unity/map coordinates back to latitude/longitude.
+ * @param {number} unityX
+ * @param {number} unityZ
+ * @returns {{lat:number, lon:number}}
+ */
+function unityToLatLon(unityX, unityZ) {
+  const normalizedX = (unityX - MAP_MIN_X) / (MAP_MAX_X - MAP_MIN_X);
+  const normalizedZ = (unityZ - MAP_MIN_Z) / (MAP_MAX_Z - MAP_MIN_Z);
+  const lon = LON_MIN + normalizedX * (LON_MAX - LON_MIN);
+  const lat = LAT_MAX - normalizedZ * (LAT_MAX - LAT_MIN);
+  return { lat, lon };
+}
+
 function App() {
   const [scale, setScale] = useState(init_scale);
   const [pos, setPos] = useState(init_pos);
@@ -954,6 +968,12 @@ function App() {
     updateCurrent();
   };
 
+  // Compute spawn center lat/lon for display
+  let spawnLatLon = null;
+  if (spawnCenter) {
+    spawnLatLon = unityToLatLon(spawnCenter.x, spawnCenter.z);
+  }
+
   return (
     <div className="app">
       {/* Top-left: Ship Dashboard (replace title) */}
@@ -1384,6 +1404,30 @@ function App() {
                 style={{ width: "100%", marginBottom: "10px" }}
               />
 
+              {/* Always-visible lat/lon inputs (above the select button) */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "10px" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "11px", color: "#666", marginBottom: "4px" }}>緯度</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={spawnLatLon ? spawnLatLon.lat.toFixed(5) : ""}
+                    placeholder="尚未選取"
+                    style={{ width: "100%", fontFamily: "monospace", fontSize: "12px" }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", fontSize: "11px", color: "#666", marginBottom: "4px" }}>經度</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={spawnLatLon ? spawnLatLon.lon.toFixed(5) : ""}
+                    placeholder="尚未選取"
+                    style={{ width: "100%", fontFamily: "monospace", fontSize: "12px" }}
+                  />
+                </div>
+              </div>
+
               <button
                 onClick={toggleSpawnMode}
                 style={{
@@ -1392,14 +1436,9 @@ function App() {
                   marginBottom: "10px",
                 }}
               >
-                {spawnMode ? "取消選擇" : "選擇位置"}
+                {spawnMode ? "取消選擇" : "手動選擇位置"}
               </button>
-
-              {spawnCenter && (
-                <div style={{ fontSize: "11px", color: "#666", marginBottom: "10px" }}>
-                  中心點: ({spawnCenter.x.toFixed(1)}, {spawnCenter.z.toFixed(1)})
-                </div>
-              )}
+              
 
               <button
                 onClick={spawnPersons}
